@@ -1,27 +1,22 @@
 <template>
   <q-page class="row items-center justify-evenly">
-    <!-- Template do QTable com slot para o botão de editar -->
     <q-table
       title="Jogadores de Vôlei"
       :rows="players"
       :columns="columns"
       row-key="id"
-      :rows-per-page-options="[0]"  
-      :pagination="{ rowsPerPage: 0 }" 
+      :rows-per-page-options="[0]"
+      :pagination="{ rowsPerPage: 0 }"
     >
-      <!-- Definindo o slot top para o checkbox de seleção geral -->
       <template v-slot:top>
         <q-tr>
           <q-th>
             <q-checkbox v-model="selectAll" @update:model-value="toggleAll" />
             Selecionar Todos
           </q-th>
-          <q-th v-for="col in columns" :key="col.name">
-          </q-th>
+          <q-th v-for="col in columns" :key="col.name"></q-th>
         </q-tr>
       </template>
-
-      <!-- Definindo o slot body para os dados da tabela -->
       <template v-slot:body="props">
         <q-tr :props="props">
           <q-td key="checkbox">
@@ -60,7 +55,7 @@
       class="q-ma-md"
       @click="showAddPlayerModal = true"
       icon="add"
-      label="adicionar jogador"
+      label="Adicionar Jogador"
     />
     <q-btn
       :disabled="teamInfo.teams === 0"
@@ -76,7 +71,7 @@
         <h3>Time {{ index + 1 }} (Relevância Total: {{ team.totalRelevance }})</h3>
         <ul>
           <li v-for="player in team.players" :key="player.id">
-            {{ player.name }} - {{ player.position }} (Relevância: {{ player.relevance }})
+            {{ player.name }} - {{ player.position }} (Relevância: {{ player.relevanciaCalc }})
           </li>
         </ul>
       </div>
@@ -95,8 +90,23 @@
           <q-form @submit.prevent="addPlayer">
             <q-input v-model="newPlayer.name" label="Nome" required></q-input>
             <q-select v-model="newPlayer.position" label="Posição" :options="positions" required></q-select>
-            <q-input v-model="newPlayer.relevance" type="number" label="Relevância" required></q-input>
-            <q-btn label="Adicionar" type="submit" color="primary"/>
+            <q-input v-model="newPlayer.relevanciaBase" type="number" label="Relevância Base" required></q-input>
+
+            <!-- Novos campos de avaliação -->
+            <div class="q-mt-md">
+              <div class="text-subtitle2">Passe</div>
+              <q-rating v-model="newPlayer.pass" size="lg" />
+            </div>
+            <div class="q-mt-md">
+              <div class="text-subtitle2">Ataque</div>
+              <q-rating v-model="newPlayer.attack" size="lg" />
+            </div>
+            <div class="q-mt-md">
+              <div class="text-subtitle2">Posicionamento</div>
+              <q-rating v-model="newPlayer.positioning" size="lg" />
+            </div>
+
+            <q-btn label="Adicionar" type="submit" color="primary" class="q-mt-md" />
           </q-form>
         </q-card-section>
       </q-card>
@@ -112,32 +122,51 @@
           <q-form @submit.prevent="updatePlayer">
             <q-input v-model="editingPlayer.name" label="Nome" required></q-input>
             <q-select v-model="editingPlayer.position" :options="positions" label="Posição" required></q-select>
-            <q-input v-model="editingPlayer.relevance" type="number" label="Relevância" required></q-input>
-            <q-btn label="Atualizar" type="submit" color="primary"/>
+            <q-input v-model="editingPlayer.relevanciaBase" type="number" label="Relevância Base" required></q-input>
+
+            <!-- Novos campos de avaliação -->
+            <div class="q-mt-md">
+              <div class="text-subtitle2">Passe</div>
+              <q-rating v-model="editingPlayer.pass" size="lg" />
+            </div>
+            <div class="q-mt-md">
+              <div class="text-subtitle2">Ataque</div>
+              <q-rating v-model="editingPlayer.attack" size="lg" />
+            </div>
+            <div class="q-mt-md">
+              <div class="text-subtitle2">Posicionamento</div>
+              <q-rating v-model="editingPlayer.positioning" size="lg" />
+            </div>
+
+            <q-btn label="Atualizar" type="submit" color="primary" class="q-mt-md" />
           </q-form>
         </q-card-section>
       </q-card>
     </q-dialog>
-
   </q-page>
 </template>
 
 <script lang="ts">
 import { defineComponent, ref, Ref, watch, computed, onMounted } from 'vue';
-import { 
-  addPlayer as addPlayerService,
-  getPlayers as getPlayersService,
-  updatePlayer as updatePlayerService,
-  deletePlayer as deletePlayerService
-} from '../playersService';
+// import { 
+//   addPlayer as addPlayerService,
+//   getPlayers as getPlayersService,
+//   updatePlayer as updatePlayerService,
+//   deletePlayer as deletePlayerService
+// } from '../playersService';
 
 interface Player {
   id: number;
   name: string;
   position: string;
-  relevance: number;
+  //relevance: number;
+  relevanciaBase: number;  // Relevância Base que o usuário define
+  relevanciaCalc: number; // Relevância calculada
   selected: boolean;
   order: number;
+  pass: number;       // Novo campo de avaliação
+  attack: number;     // Novo campo de avaliação
+  positioning: number; // Novo campo de avaliação
 }
 
 interface Column {
@@ -165,10 +194,15 @@ export default defineComponent({
     const players: Ref<Player[]> = ref([]);
     const teams = ref<{ players: Player[]; totalRelevance: number }[]>([]);
     const showAddPlayerModal = ref(false);
-    const newPlayer = ref<Player>({ id: 0, name: '', position: '', relevance: 0, selected: false, order: 0 });
-    const editPlayerDialog = ref(false); // Certifique-se de que esta é a única declaração de editPlayerDialog
-    const editingPlayer = ref<Player>({ id: 0, name: '', position: '', relevance: 0, selected: false, order: 0 });
+    const newPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
+    const editPlayerDialog = ref(false);
+    const editingPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
     const positions = ['Central', 'Levantador', 'Líbero', 'Oposto', 'Ponteiro', 'Indefinido'];
+    
+    const calculateTotalRelevance = (player: Player) => {
+      const bonusMultiplier = (player.pass + player.attack + player.positioning) / 15;
+      return player.relevanciaBase * (1 + bonusMultiplier);
+    };
 
     const relevanceByPosition: Record<string, number> = {
       'Levantador': 1000,
@@ -207,11 +241,11 @@ export default defineComponent({
     }, { deep: true });
 
     watch(() => newPlayer.value.position, (newPosition) => {
-      newPlayer.value.relevance = relevanceByPosition[newPosition] || 0;
+      newPlayer.value.relevanciaBase = relevanceByPosition[newPosition] || 0;
     });
 
     watch(() => editingPlayer.value.position, (newPosition) => {
-      editingPlayer.value.relevance = relevanceByPosition[newPosition] || 0;
+      editingPlayer.value.relevanciaBase = relevanceByPosition[newPosition] || 0;
     });
 
     function loadPlayers() {
@@ -220,7 +254,7 @@ export default defineComponent({
         players.value = JSON.parse(storedPlayers).map((player: Player, index: number) => ({
           ...player,
           order: index + 1,
-          relevance: Number(player.relevance) // Assegura que a relevância é um número
+          relevance: Number(player.relevanciaBase) // Assegura que a relevância é um número
         }));
       }
     }
@@ -232,18 +266,21 @@ export default defineComponent({
     function addPlayer() {
       const newId = players.value.length > 0 ? Math.max(...players.value.map(p => p.id)) + 1 : 1;
       const newOrder = players.value.length + 1;
-      const relevanceValue = Number(newPlayer.value.relevance); // Assegura que a relevância é um número
+      const relevanceMultiplier = 1 + (newPlayer.value.pass + newPlayer.value.attack + newPlayer.value.positioning) / 15;
+      //const relevanceValue = Number(newPlayer.value.relevance); // Assegura que a relevância é um número
+      const relevanceValue = Number(Math.round(newPlayer.value.relevanciaBase * relevanceMultiplier));
 
       const playerToAdd: Player = {
         ...newPlayer.value,
         id: newId,
         order: newOrder,
-        relevance: relevanceValue
+        //relevance: relevanceValue
+        relevanciaCalc: calculateTotalRelevance(newPlayer.value)
       };
 
       players.value.push(playerToAdd);
       showAddPlayerModal.value = false;
-      newPlayer.value = { id: 0, name: '', position: '', relevance: 0, selected: false, order: newOrder + 1 };
+      newPlayer.value = { id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, selected: false, order: newOrder + 1, pass: 0, attack: 0, positioning: 0 };
     }
 
     function editPlayer(player: Player) {
@@ -254,8 +291,14 @@ export default defineComponent({
     function updatePlayer() {
       const index = players.value.findIndex(p => p.id === editingPlayer.value.id);
       if (index !== -1) {
-        const updatedRelevance = Number(editingPlayer.value.relevance); // Assegura que a relevância é um número
-        players.value[index] = { ...editingPlayer.value, relevance: updatedRelevance };
+        //const relevanceMultiplier = 1 + (editingPlayer.value.pass + editingPlayer.value.attack + editingPlayer.value.positioning) / 15;
+        //const updatedRelevance = Number(editingPlayer.value.relevance); // Assegura que a relevância é um número
+        //const updatedRelevance = Number(Math.round(editingPlayer.value.relevance * relevanceMultiplier));
+        //players.value[index] = { ...editingPlayer.value, relevance: updatedRelevance };
+        players.value[index] = {
+          ...editingPlayer.value,
+          relevanciaCalc: calculateTotalRelevance(editingPlayer.value)
+        };
       }
       editPlayerDialog.value = false;
     }
@@ -318,7 +361,7 @@ export default defineComponent({
                 }, 0);
 
                 newTeams[minRelevanceTeamIndex].players.push(player);
-                newTeams[minRelevanceTeamIndex].totalRelevance += player.relevance;
+                newTeams[minRelevanceTeamIndex].totalRelevance += player.relevanciaBase;
             });
         });
 
@@ -327,7 +370,7 @@ export default defineComponent({
 
     function groupByRelevance(players: Player[]): Record<string, Player[]> {
       return players.reduce((groups: Record<string, Player[]>, player: Player) => {
-        const key = player.relevance.toString();
+        const key = player.relevanciaBase.toString();
         if (!groups[key]) {
           groups[key] = [];
         }
