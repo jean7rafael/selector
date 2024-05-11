@@ -68,10 +68,10 @@
 
     <div v-if="teams.length > 0">
       <div v-for="(team, index) in teams" :key="index">
-        <h3>Time {{ index + 1 }} (Relevância Total: {{ team.totalRelevance }})</h3>
+        <h3>Time {{ index + 1 }} (Relevância Total: {{ Math.round(team.totalRelevance) }})</h3>
         <ul>
           <li v-for="player in team.players" :key="player.id">
-            {{ player.name }} - {{ player.position }} (Relevância: {{ player.relevanciaCalc }})
+            {{ player.name }} - {{ player.position }} (Relevância: {{ Math.round(player.relevanciaCalc) }})
           </li>
         </ul>
       </div>
@@ -201,7 +201,7 @@ export default defineComponent({
     
     const calculateTotalRelevance = (player: Player) => {
       const bonusMultiplier = (player.pass + player.attack + player.positioning) / 15;
-      return player.relevanciaBase * (1 + bonusMultiplier);
+      return Math.round(player.relevanciaBase * (1 + bonusMultiplier));
     };
 
     const relevanceByPosition: Record<string, number> = {
@@ -230,57 +230,104 @@ export default defineComponent({
       { name: 'order', label: 'Ordem', field: 'order', align: 'center', sortable: true, format: (val: number): string => val.toString().padStart(2, '0') },
       { name: 'name', label: 'Nome', field: 'name', align: 'left', sortable: true },
       { name: 'position', label: 'Posição', field: 'position', align: 'left', sortable: true },
-      { name: 'relevance', label: 'Relevância', field: 'relevance', align: 'left', sortable: true, format: (val: number): string => val.toString().padStart(2, '0') },
-      { name: 'actions', label: 'Ações', field: 'id', align: 'center', sortable: false, format: (): string => 'Editar' }
+      { name: 'relevanciaBase', label: 'Relevância Base', field: 'relevanciaBase', align: 'left', sortable: true },
+      { name: 'relevanciaCalc', label: 'Relevância Calculada', field: 'relevanciaCalc', align: 'left', sortable: true },
+      { name: 'actions', label: 'Ações', field: 'id', align: 'center', sortable: false }
     ]);
 
     const filteredColumns = computed(() => columns.value.filter((c: Column) => c.name !== 'select'));
+
+    // watch(players, () => {
+    //   savePlayers();
+    // }, { deep: true });
+    // watch(() => newPlayer.value.position, (newPosition) => {
+    //   newPlayer.value.relevanciaBase = relevanceByPosition[newPosition] || 0;
+    // });
+    // watch(() => editingPlayer.value.position, (newPosition) => {
+    //   editingPlayer.value.relevanciaBase = relevanceByPosition[newPosition] || 0;
+    // });
+    watch(() => newPlayer.value.position, (newPosition) => {
+      newPlayer.value.relevanciaBase = relevanceByPosition[newPosition] || 0;
+      newPlayer.value.relevanciaCalc = calculateTotalRelevance(newPlayer.value);
+    });
+
+    watch(() => [editingPlayer.value.pass, editingPlayer.value.attack, editingPlayer.value.positioning, editingPlayer.value.relevanciaBase], () => {
+      editingPlayer.value.relevanciaCalc = calculateTotalRelevance(editingPlayer.value);
+    }, { deep: true });
 
     watch(players, () => {
       savePlayers();
     }, { deep: true });
 
-    watch(() => newPlayer.value.position, (newPosition) => {
-      newPlayer.value.relevanciaBase = relevanceByPosition[newPosition] || 0;
-    });
-
-    watch(() => editingPlayer.value.position, (newPosition) => {
-      editingPlayer.value.relevanciaBase = relevanceByPosition[newPosition] || 0;
-    });
-
+    // function loadPlayers() {
+    //   const storedPlayers = localStorage.getItem('players');
+    //   if (storedPlayers) {
+    //     players.value = JSON.parse(storedPlayers).map((player: Player, index: number) => ({
+    //       ...player,
+    //       order: index + 1,
+    //       relevance: Number(player.relevanciaBase) // Assegura que a relevância é um número
+    //     }));
+    //   }
+    // }
     function loadPlayers() {
       const storedPlayers = localStorage.getItem('players');
       if (storedPlayers) {
         players.value = JSON.parse(storedPlayers).map((player: Player, index: number) => ({
           ...player,
           order: index + 1,
-          relevance: Number(player.relevanciaBase) // Assegura que a relevância é um número
+          relevanciaBase: Number(player.relevanciaBase),
+          pass: Number(player.pass || 0),
+          attack: Number(player.attack || 0),
+          positioning: Number(player.positioning || 0),
+          relevanciaCalc: calculateTotalRelevance(player)
         }));
       }
     }
 
+    // function savePlayers() {
+    //   localStorage.setItem('players', JSON.stringify(players.value));
+    // }
     function savePlayers() {
-      localStorage.setItem('players', JSON.stringify(players.value));
-    }
+      localStorage.setItem('players', JSON.stringify(players.value.map(player => ({
+        ...player,
+        // Remova campos não necessários antes de salvar, se houver
+        relevanciaCalc: undefined
+      }))));
+}
 
+    // function addPlayer() {
+    //   const newId = players.value.length > 0 ? Math.max(...players.value.map(p => p.id)) + 1 : 1;
+    //   const newOrder = players.value.length + 1;
+    //   const relevanceMultiplier = 1 + (newPlayer.value.pass + newPlayer.value.attack + newPlayer.value.positioning) / 15;
+    //   //const relevanceValue = Number(newPlayer.value.relevance); // Assegura que a relevância é um número
+    //   const relevanceValue = Number(Math.round(newPlayer.value.relevanciaBase * relevanceMultiplier));
+
+    //   const playerToAdd: Player = {
+    //     ...newPlayer.value,
+    //     id: newId,
+    //     order: newOrder,
+    //     //relevance: relevanceValue
+    //     relevanciaCalc: calculateTotalRelevance(newPlayer.value)
+    //   };
+
+    //   players.value.push(playerToAdd);
+    //   showAddPlayerModal.value = false;
+    //   newPlayer.value = { id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, selected: false, order: newOrder + 1, pass: 0, attack: 0, positioning: 0 };
+    // }
     function addPlayer() {
       const newId = players.value.length > 0 ? Math.max(...players.value.map(p => p.id)) + 1 : 1;
       const newOrder = players.value.length + 1;
-      const relevanceMultiplier = 1 + (newPlayer.value.pass + newPlayer.value.attack + newPlayer.value.positioning) / 15;
-      //const relevanceValue = Number(newPlayer.value.relevance); // Assegura que a relevância é um número
-      const relevanceValue = Number(Math.round(newPlayer.value.relevanciaBase * relevanceMultiplier));
 
       const playerToAdd: Player = {
         ...newPlayer.value,
         id: newId,
         order: newOrder,
-        //relevance: relevanceValue
         relevanciaCalc: calculateTotalRelevance(newPlayer.value)
       };
 
       players.value.push(playerToAdd);
       showAddPlayerModal.value = false;
-      newPlayer.value = { id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, selected: false, order: newOrder + 1, pass: 0, attack: 0, positioning: 0 };
+      resetNewPlayer();
     }
 
     function editPlayer(player: Player) {
@@ -288,13 +335,23 @@ export default defineComponent({
       editPlayerDialog.value = true;
     }
 
+    // function updatePlayer() {
+    //   const index = players.value.findIndex(p => p.id === editingPlayer.value.id);
+    //   if (index !== -1) {
+    //     //const relevanceMultiplier = 1 + (editingPlayer.value.pass + editingPlayer.value.attack + editingPlayer.value.positioning) / 15;
+    //     //const updatedRelevance = Number(editingPlayer.value.relevance); // Assegura que a relevância é um número
+    //     //const updatedRelevance = Number(Math.round(editingPlayer.value.relevance * relevanceMultiplier));
+    //     //players.value[index] = { ...editingPlayer.value, relevance: updatedRelevance };
+    //     players.value[index] = {
+    //       ...editingPlayer.value,
+    //       relevanciaCalc: calculateTotalRelevance(editingPlayer.value)
+    //     };
+    //   }
+    //   editPlayerDialog.value = false;
+    // }
     function updatePlayer() {
       const index = players.value.findIndex(p => p.id === editingPlayer.value.id);
       if (index !== -1) {
-        //const relevanceMultiplier = 1 + (editingPlayer.value.pass + editingPlayer.value.attack + editingPlayer.value.positioning) / 15;
-        //const updatedRelevance = Number(editingPlayer.value.relevance); // Assegura que a relevância é um número
-        //const updatedRelevance = Number(Math.round(editingPlayer.value.relevance * relevanceMultiplier));
-        //players.value[index] = { ...editingPlayer.value, relevance: updatedRelevance };
         players.value[index] = {
           ...editingPlayer.value,
           relevanciaCalc: calculateTotalRelevance(editingPlayer.value)
@@ -302,6 +359,10 @@ export default defineComponent({
       }
       editPlayerDialog.value = false;
     }
+
+    function resetNewPlayer() {
+        newPlayer.value = { id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, selected: false, order: players.value.length + 1, pass: 0, attack: 0, positioning: 0 };
+      }
 
     const isDeleteDialogOpen = ref(false);
     const playerToDelete: Ref<Player | null> = ref(null);
