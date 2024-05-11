@@ -245,18 +245,6 @@ export default defineComponent({
       showAddPlayerModal.value = false;
       newPlayer.value = { id: 0, name: '', position: '', relevance: 0, selected: false, order: newOrder + 1 };
     }
-    // async function addPlayer() {
-    //   const newPlayerData = {
-    //     name: newPlayer.value.name,
-    //     position: newPlayer.value.position,
-    //     relevance: Number(newPlayer.value.relevance),
-    //     selected: newPlayer.value.selected || false, // Garanta o valor padrão
-    //     order: players.value.length + 1  // Ou algum outro cálculo para definir a ordem
-    //   };
-
-    //   await addPlayerService(newPlayerData);
-    //   players.value = await getPlayersService();
-    // }
 
     function editPlayer(player: Player) {
       editingPlayer.value = { ...player };
@@ -271,16 +259,6 @@ export default defineComponent({
       }
       editPlayerDialog.value = false;
     }
-    // async function updatePlayer() {
-    //   if (editingPlayer.value) {
-    //     const updatedData = {
-    //       ...editingPlayer.value,
-    //       relevance: Number(editingPlayer.value.relevance)
-    //     };
-    //     await updatePlayerService(editingPlayer.value.id, updatedData);
-    //     players.value = await getPlayersService();
-    //   }
-    // }
 
     const isDeleteDialogOpen = ref(false);
     const playerToDelete: Ref<Player | null> = ref(null);
@@ -290,12 +268,7 @@ export default defineComponent({
         players.value.splice(index, 1);
       }
     };
-    // async function deletePlayer() {
-    //   if (playerToDelete.value) {
-    //     await deletePlayerService(playerToDelete.value.id);
-    //     players.value = await getPlayersService();
-    //   }
-    // }
+ 
     const confirmDelete = () => {
       if (playerToDelete.value) {
         deletePlayer(playerToDelete.value);
