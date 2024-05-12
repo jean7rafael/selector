@@ -92,6 +92,9 @@
             <q-select v-model="newPlayer.position" label="Posição" :options="positions" required></q-select>
             <q-input v-model="newPlayer.relevanciaBase" type="number" label="Relevância Base" required></q-input>
 
+            <!-- Novo campo de seleção de gênero -->
+            <q-select v-model="newPlayer.gender" label="Gênero" :options="['Homem', 'Mulher']" required></q-select>
+
             <!-- Novos campos de avaliação -->
             <div class="q-mt-md">
               <div class="text-subtitle2">Passe</div>
@@ -123,6 +126,9 @@
             <q-input v-model="editingPlayer.name" label="Nome" required></q-input>
             <q-select v-model="editingPlayer.position" :options="positions" label="Posição" required></q-select>
             <q-input v-model="editingPlayer.relevanciaBase" type="number" label="Relevância Base" required></q-input>
+
+            <!-- Novo campo de seleção de gênero -->
+            <q-select v-model="editingPlayer.gender" label="Gênero" :options="['Homem', 'Mulher']" required></q-select>
 
             <!-- Novos campos de avaliação -->
             <div class="q-mt-md">
@@ -162,6 +168,7 @@ interface Player {
   //relevance: number;
   relevanciaBase: number;  // Relevância Base que o usuário define
   relevanciaCalc: number; // Relevância calculada
+  gender: string;  // Novo campo para o gênero
   selected: boolean;
   order: number;
   pass: number;       // Novo campo de avaliação
@@ -194,14 +201,15 @@ export default defineComponent({
     const players: Ref<Player[]> = ref([]);
     const teams = ref<{ players: Player[]; totalRelevance: number }[]>([]);
     const showAddPlayerModal = ref(false);
-    const newPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
+    const newPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: '', selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
     const editPlayerDialog = ref(false);
-    const editingPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
+    const editingPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: '', selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
     const positions = ['Central', 'Levantador', 'Líbero', 'Oposto', 'Ponteiro', 'Indefinido'];
     
     const calculateTotalRelevance = (player: Player) => {
       const bonusMultiplier = Number((player.pass + player.attack + player.positioning) / 15);
       return Number(Math.round(player.relevanciaBase * (1 + bonusMultiplier)));
+      
     };
 
     const relevanceByPosition: Record<string, number> = {
@@ -306,7 +314,7 @@ export default defineComponent({
     }
 
     function resetNewPlayer() {
-        newPlayer.value = { id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, selected: false, order: players.value.length + 1, pass: 0, attack: 0, positioning: 0 };
+        newPlayer.value = { id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: '', selected: false, order: players.value.length + 1, pass: 0, attack: 0, positioning: 0 };
       }
 
     const isDeleteDialogOpen = ref(false);
