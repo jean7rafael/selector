@@ -11,7 +11,7 @@
       <template v-slot:top>
         <q-tr>
           <q-th>
-            <q-checkbox v-model="selectAll" @update:model-value="toggleAll" />
+            <q-checkbox v-model="selectAll" color="green" @update:model-value="toggleAll" />
             Selecionar Todos
           </q-th>
           <q-th v-for="col in columns" :key="col.name"></q-th>
@@ -20,14 +20,14 @@
       <template v-slot:body="props">
         <q-tr :props="props">
           <q-td key="checkbox">
-            <q-checkbox v-model="props.row.selected" />
+            <q-checkbox color="green" v-model="props.row.selected" />
           </q-td>
           <q-td v-for="col in filteredColumns" :key="col.name">
             <template v-if="col.name !== 'actions'">
               {{ typeof col.field === 'function' ? col.field(props.row) : props.row[col.field] }}
             </template>
             <template v-if="col.name === 'actions'">
-              <q-btn flat icon="edit" @click="editPlayer(props.row)" />
+              <q-btn flat icon="edit" color="black" @click="editPlayer(props.row)" />
               <q-btn flat icon="delete" color="negative" @click="promptDeletePlayer(props.row)" />
             </template>
           </q-td>
@@ -38,7 +38,7 @@
     <q-dialog v-model="isDeleteDialogOpen">
       <q-card>
         <q-card-section class="row items-center">
-          <q-icon name="warning" color="amber" />
+          <q-icon name="warning" color="orange" />
           <span class="q-ml-sm">Você realmente deseja excluir este jogador?</span>
         </q-card-section>
 
@@ -58,10 +58,16 @@
       label="Adicionar Jogador"
     />
     <q-btn
+      fab
+      color="green"
+      class="q-ma-md"
+      @click="mainTeamFormationProcess"
+      icon="done"
+      label=". Selecionar Times"
       :disabled="teamInfo.teams === 0"
-      label="Selecionar Times"
-      @click="formTeams"
     />
+    <q-toggle v-model="balanceWomen" label="Equilibrar Mulheres" class="q-ma-md" color="orange" />
+
     <q-banner>
       {{ teamInfo.message }}
     </q-banner>
@@ -153,27 +159,20 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, Ref, watch, computed, onMounted } from 'vue';
-// import { 
-//   addPlayer as addPlayerService,
-//   getPlayers as getPlayersService,
-//   updatePlayer as updatePlayerService,
-//   deletePlayer as deletePlayerService
-// } from '../playersService';
+import { defineComponent, ref, Ref, watch, computed } from 'vue';
 
 interface Player {
   id: number;
   name: string;
   position: string;
-  //relevance: number;
-  relevanciaBase: number;  // Relevância Base que o usuário define
-  relevanciaCalc: number; // Relevância calculada
-  gender: string;  // Novo campo para o gênero
+  relevanciaBase: number;
+  relevanciaCalc: number;
+  gender: 'Homem' | 'Mulher';
   selected: boolean;
   order: number;
-  pass: number;       // Novo campo de avaliação
-  attack: number;     // Novo campo de avaliação
-  positioning: number; // Novo campo de avaliação
+  pass: number;
+  attack: number;
+  positioning: number;
 }
 
 interface Column {
@@ -190,26 +189,28 @@ interface Column {
 interface Team {
   players: Player[];
   totalRelevance: number;
+  // menCount?: number;
+  // womenCount?: number;
+}
+
+interface ExcessOrDeficit {
+    index: number;
+    womenCount: number;
 }
 
 export default defineComponent({
   setup() {
-    // onMounted(async () => {
-    //   players.value = await getPlayersService();
-    // });
-
     const players: Ref<Player[]> = ref([]);
     const teams = ref<{ players: Player[]; totalRelevance: number }[]>([]);
     const showAddPlayerModal = ref(false);
-    const newPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: '', selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
+    const newPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
     const editPlayerDialog = ref(false);
-    const editingPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: '', selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
+    const editingPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
     const positions = ['Central', 'Levantador', 'Líbero', 'Oposto', 'Ponteiro', 'Indefinido'];
     
     const calculateTotalRelevance = (player: Player) => {
       const bonusMultiplier = Number((player.pass + player.attack + player.positioning) / 15);
-      return Number(Math.round(player.relevanciaBase * (1 + bonusMultiplier)));
-      
+      return Number(Math.round(player.relevanciaBase * (1 + bonusMultiplier)));   
     };
 
     const relevanceByPosition: Record<string, number> = {
@@ -223,6 +224,7 @@ export default defineComponent({
 
     const selectAll = ref(false);
     const selectedPlayers = computed(() => players.value.filter(p => p.selected));
+    const balanceWomen: Ref<boolean> = ref(false);
 
     const teamInfo = computed(() => {
       const count = selectedPlayers.value.length;
@@ -276,7 +278,6 @@ export default defineComponent({
     function savePlayers() {
       localStorage.setItem('players', JSON.stringify(players.value.map(player => ({
         ...player,
-        // Remova campos não necessários antes de salvar, se houver
         relevanciaCalc: undefined
       }))));
     }
@@ -314,8 +315,8 @@ export default defineComponent({
     }
 
     function resetNewPlayer() {
-        newPlayer.value = { id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: '', selected: false, order: players.value.length + 1, pass: 0, attack: 0, positioning: 0 };
-      }
+      newPlayer.value = { id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: players.value.length + 1, pass: 0, attack: 0, positioning: 0 };
+    }
 
     const isDeleteDialogOpen = ref(false);
     const playerToDelete: Ref<Player | null> = ref(null);
@@ -355,7 +356,9 @@ export default defineComponent({
 
         // Agrupar jogadores por relevância
         const groups = groupByRelevance(selectedPlayers.value);
-        const sortedKeys = Object.keys(groups).sort((a, b) => parseInt(b) - parseInt(a)); // Ordena chaves de relevância em ordem decrescente
+
+        // Ordena chaves de relevância em ordem decrescente
+        const sortedKeys = Object.keys(groups).sort((a, b) => parseInt(b) - parseInt(a));
 
         // Inicializa os times
         let newTeams = teamSizes.map(size => ({
@@ -375,9 +378,7 @@ export default defineComponent({
                 }, 0);
 
                 newTeams[minRelevanceTeamIndex].players.push(player);
-                console.log(player)
                 newTeams[minRelevanceTeamIndex].totalRelevance += Number(player.relevanciaCalc);
-                console.log(newTeams)
             });
         });
 
@@ -428,12 +429,86 @@ export default defineComponent({
         return [teamSetup.length, teamSetup];
     }
 
+    function balanceTeamsByGender() {
+        const totalWomen = teams.value.reduce((acc, team) => acc + team.players.filter(p => p.gender === 'Mulher').length, 0);
+        const womenPerTeam = Math.floor(totalWomen / teams.value.length);
+
+        let excessTeams: ExcessOrDeficit[] = [];
+        let deficitTeams: ExcessOrDeficit[] = [];
+
+        // Identificar times com excesso e déficit de mulheres
+        teams.value.forEach((team, index) => {
+            const womenCount = team.players.filter(p => p.gender === 'Mulher').length;
+            if (womenCount > womenPerTeam) {
+                excessTeams.push({ index, womenCount });
+            } else if (womenCount < womenPerTeam) {
+                deficitTeams.push({ index, womenCount });
+            }
+        });
+
+        // Função para encontrar e realizar trocas de jogadores para equilibrar os times
+        function makeTrades() {
+            excessTeams.forEach(excess => {
+                while (excess.womenCount > womenPerTeam && deficitTeams.length > 0) {
+                    let deficit = deficitTeams[0];
+
+                    let womanToTrade = teams.value[excess.index].players.find(p => 
+                        p.gender === 'Mulher' && 
+                        teams.value[deficit.index].players.some(m => m.gender === 'Homem' && m.relevanciaBase === p.relevanciaBase)
+                    );
+                    let manToTrade = teams.value[deficit.index].players.find(m => 
+                        m.gender === 'Homem' && 
+                        womanToTrade && m.relevanciaBase === womanToTrade.relevanciaBase
+                    );
+
+                    if (womanToTrade && manToTrade) {
+                        // Filtra jogadores com segurança usando ?. para evitar erros de undefined
+                        teams.value[excess.index].players = teams.value[excess.index].players.filter(p => p.id !== womanToTrade?.id);
+                        teams.value[deficit.index].players = teams.value[deficit.index].players.filter(p => p.id !== manToTrade?.id);
+
+                        // Adiciona os jogadores trocados aos times correspondentes
+                        teams.value[excess.index].players.push(manToTrade);
+                        teams.value[deficit.index].players.push(womanToTrade);
+
+                        // Atualiza a contagem de mulheres
+                        excess.womenCount--;
+                        deficit.womenCount++;
+
+                        // Se o time de déficit atingir o número ideal, remove da lista de déficits
+                        if (deficit.womenCount === womenPerTeam) {
+                            deficitTeams.shift();
+                        }
+                    } else {
+                        // Se não encontrar trocas possíveis, interrompe para evitar loop infinito
+                        break;
+                    }
+                }
+            });
+
+            // Remove times de excesso que já foram equilibrados
+            excessTeams = excessTeams.filter(team => team.womenCount > womenPerTeam);
+        }
+
+        // Continua as trocas enquanto houver times desequilibrados
+        while (excessTeams.length > 0 && deficitTeams.length > 0) {
+            makeTrades();
+        }
+    }
+
+    function mainTeamFormationProcess() {
+        formTeams(); // Chama a formação inicial dos times
+
+        if (balanceWomen.value) {
+            balanceTeamsByGender(); // Equilibra os times se o toggle estiver ativado
+        }
+    }
+
     loadPlayers();
 
     return {
       players, deletePlayer, showAddPlayerModal, newPlayer, positions, editPlayerDialog, editingPlayer,
       addPlayer, editPlayer, updatePlayer, selectedPlayers, teamInfo, formTeams, teams, selectAll,
-      toggleAll, columns, filteredColumns, isDeleteDialogOpen, confirmDelete, promptDeletePlayer
+      toggleAll, balanceWomen, mainTeamFormationProcess, columns, filteredColumns, isDeleteDialogOpen, confirmDelete, promptDeletePlayer
     };
 
   }
