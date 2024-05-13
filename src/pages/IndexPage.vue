@@ -63,7 +63,7 @@
       class="q-ma-md"
       @click="mainTeamFormationProcess"
       icon="done"
-      label=". Selecionar Times"
+      label="Selecionar Times"
       :disabled="teamInfo.teams === 0"
     />
     <q-toggle v-model="balanceWomen" label="Equilibrar Mulheres" class="q-ma-md" color="orange" />
@@ -175,23 +175,33 @@ interface Player {
   positioning: number;
 }
 
+// interface Column {
+//   name: string;
+//   label: string;
+//   field: string | ((row: any) => any);
+//   align?: 'left' | 'center' | 'right';
+//   sortable?: boolean;
+//   format?: (val: any) => string;
+//   style?: string;
+//   required?: boolean;
+// }
 interface Column {
   name: string;
   label: string;
-  field: string | ((row: any) => any);
-  align?: 'left' | 'center' | 'right';
+  field: string | ((row: unknown) => unknown);
+  align: 'left' | 'center' | 'right';
   sortable?: boolean;
-  format?: (val: any) => string;
+  format?: (val: unknown) => string;
   style?: string;
   required?: boolean;
 }
 
-interface Team {
-  players: Player[];
-  totalRelevance: number;
-  // menCount?: number;
-  // womenCount?: number;
-}
+// interface Team {
+//   players: Player[];
+//   totalRelevance: number;
+//   // menCount?: number;
+//   // womenCount?: number;
+// }
 
 interface ExcessOrDeficit {
     index: number;
@@ -228,21 +238,67 @@ export default defineComponent({
 
     const teamInfo = computed(() => {
       const count = selectedPlayers.value.length;
-      if (count >= 22) return { message: "Máximo de 21 jogadores permitidos", teams: 0 };
+      if (count >= 22) return { message: 'Máximo de 21 jogadores permitidos', teams: 0 };
       else if (count >= 15) return { message: `${count} jogadores selecionados, formando 3 times`, teams: 3 };
       else if (count >= 14) return { message: `${count} jogadores selecionados, formando 2 times`, teams: 2 };
       else if (count >= 8) return { message: `${count} jogadores selecionados, formando 2 times`, teams: 2 };
       else return { message: `${count} jogadores selecionados, times não podem ser formados`, teams: 0 };
     });
 
-    const columns: Ref<Array<Column>> = ref([
-      { name: 'select', label: 'Select', field: 'selected', align: 'center', sortable: false },
-      { name: 'order', label: 'Ordem', field: 'order', align: 'center', sortable: true, format: (val: number): string => val.toString().padStart(2, '0') },
-      { name: 'name', label: 'Nome', field: 'name', align: 'left', sortable: true },
-      { name: 'position', label: 'Posição', field: 'position', align: 'left', sortable: true },
-      { name: 'relevanciaBase', label: 'Relevância Base', field: 'relevanciaBase', align: 'left', sortable: true },
-      { name: 'relevanciaCalc', label: 'Relevância Calculada', field: 'relevanciaCalc', align: 'left', sortable: true },
-      { name: 'actions', label: 'Ações', field: 'id', align: 'center', sortable: false }
+    const columns: Ref<Column[]> = ref([
+      { 
+        name: 'select', 
+        label: 'Select', 
+        field: 'selected', 
+        align: 'center', 
+        sortable: false 
+      },
+      { 
+        name: 'order', 
+        label: 'Ordem', 
+        field: 'order', 
+        align: 'center', 
+        sortable: true, 
+        format: (val: unknown): string => typeof val === 'number' ? val.toString().padStart(2, '0') : ''
+      },
+      { 
+        name: 'name', 
+        label: 'Nome', 
+        field: 'name', 
+        align: 'left', 
+        sortable: true 
+      },
+      // Continue defining other columns as needed...
+      {
+        name: 'position',
+        label: 'Posição',
+        field: 'position',
+        align: 'left',
+        sortable: true
+      },
+      {
+        name: 'relevanciaBase',
+        label: 'Relevância Base',
+        field: 'relevanciaBase',
+        align: 'right',
+        sortable: true,
+        format: (val: unknown): string => typeof val === 'number' ? val.toString() : ''
+      },
+      {
+        name: 'relevanciaCalc',
+        label: 'Relevância Calculada',
+        field: 'relevanciaCalc',
+        align: 'right',
+        sortable: true,
+        format: (val: unknown): string => typeof val === 'number' ? val.toFixed(2) : ''
+      },
+      {
+        name: 'actions',
+        label: 'Ações',
+        field: (/* _: unknown */): string => 'N/A', // Dummy field value as example
+        align: 'center',
+        sortable: false
+      }
     ]);
 
     const filteredColumns = computed(() => columns.value.filter((c: Column) => c.name !== 'select'));
@@ -349,7 +405,7 @@ export default defineComponent({
         const [numberOfTeams, teamSizes] = calculateTeamDistribution(numPlayers);
 
         if (numberOfTeams === 0) {
-            alert("Não há jogadores suficientes para formar times ou o número máximo foi excedido.");
+            alert('Não há jogadores suficientes para formar times ou o número máximo foi excedido.');
             teams.value = [];
             return;
         }
@@ -361,10 +417,15 @@ export default defineComponent({
         const sortedKeys = Object.keys(groups).sort((a, b) => parseInt(b) - parseInt(a));
 
         // Inicializa os times
-        let newTeams = teamSizes.map(size => ({
-            players: [] as Player[],
-            totalRelevance: 0
+        // let newTeams = teamSizes.map(size => ({
+        //     players: [] as Player[],
+        //     totalRelevance: 0
+        // }));
+        let newTeams = teamSizes.map(() => ({
+          players: [] as Player[],
+          totalRelevance: 0
         }));
+
 
         // Distribuir jogadores começando do grupo de maior relevância
         sortedKeys.forEach(key => {
