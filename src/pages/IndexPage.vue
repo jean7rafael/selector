@@ -36,15 +36,17 @@
     </q-table>
     
     <q-dialog v-model="isDeleteDialogOpen">
-      <q-card>
+      <q-card class="flex flex-center" style="width: auto; max-width: 350px;">
         <q-card-section class="row items-center">
-          <q-icon name="warning" color="orange" />
-          <span class="q-ml-sm">Você realmente deseja excluir este jogador?</span>
+          <q-icon name="warning" color="orange" size="32px" /> 
+          <span class="q-ml-sm text-h6" >Realmente deseja excluir {{ selectedPlayer?.gender === 'Homem' ? 'o' : 'a' }}</span>
+          <q-icon name="warning" color="transparent" size="35px" /> 
+          <span class="q-ml-sm text-h6">{{ selectedPlayer?.gender === 'Homem' ? 'jogador' : 'jogadora' }} {{ selectedPlayer?.name || 'sem nome' }}?</span>
         </q-card-section>
 
-        <q-card-actions align="right">
-          <q-btn flat label="Cancelar" color="primary" v-close-popup />
-          <q-btn flat label="Excluir" color="negative" @click="confirmDelete" />
+        <q-card-actions align="center">
+          <q-btn fab icon="close" class="q-ma-md flex flex-center" label="Cancelar" color="orange"  style="width: 150px;" v-close-popup />
+          <q-btn fab icon="delete" class="q-ma-md flex flex-center" label="Excluir" color="negative"  style="width: 150px;" @click="confirmDelete" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -52,35 +54,45 @@
     <q-btn
       fab
       color="primary"
-      class="q-ma-md"
+      class="q-ma-md flex flex-center"
       @click="showAddPlayerModal = true"
       icon="add"
       label="Adicionar Jogador"
+      style="width: 200px;"
     />
     <q-btn
       fab
       color="green"
-      class="q-ma-md"
+      class="q-ma-md flex flex-center"
       @click="mainTeamFormationProcess"
       icon="done"
       label="Selecionar Times"
       :disabled="teamInfo.teams === 0"
+      style="width: 200px;"
     />
-    <q-toggle v-model="balanceWomen" label="Equilibrar Mulheres" class="q-ma-md" color="orange" />
+    <q-toggle v-model="balanceWomen" label="EQUILIBRAR MULHERES" class="q-ma-md" color="orange" />
 
     <q-banner>
       {{ teamInfo.message }}
     </q-banner>
 
-    <div v-if="teams.length > 0">
-      <div v-for="(team, index) in teams" :key="index">
-        <h3>Time {{ index + 1 }} (Relevância Total: {{ Math.round(team.totalRelevance) }})</h3>
-        <ul>
-          <li v-for="player in team.players" :key="player.id">
-            {{ player.name }} - {{ player.position }} (Relevância: {{ Math.round(player.relevanciaCalc) }})
-          </li>
-        </ul>
-      </div>
+    <div v-if="teams.length > 0" class="teams-container">
+      <table v-for="(team, index) in teams" :key="index" class="team-table">
+        <thead>
+          <tr>
+            <th colspan="3" class="team-header">
+              TIME {{ index + 1 }} (RELEVÂNCIA TOTAL: {{ Math.round(team.totalRelevance) }})
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="player in team.players" :key="player.id" class="team-row">
+            <td class="team-cell">{{ player.name }}</td>
+            <td class="team-cell">{{ player.position }}</td>
+            <td class="team-cell">{{ Math.round(player.relevanciaCalc) }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     <div v-else>
       <p>Nenhum time formado ou dados ainda não processados.</p>
@@ -88,13 +100,14 @@
 
     <!-- Modal para adicionar jogador -->
     <q-dialog v-model="showAddPlayerModal">
-      <q-card>
+      <q-card class="flex" style="max-width: 350px;">
         <q-card-section class="row items-center">
+          <q-icon name="add" color="primary" size="32px" /> 
           <div class="text-h6">Adicionar Jogador</div>
         </q-card-section>
-        <q-card-section>
+        <q-card-section class="row items-center">
           <q-form @submit.prevent="addPlayer">
-            <q-input v-model="newPlayer.name" label="Nome" required></q-input>
+            <q-input v-model="newPlayer.name" label="Nome"  style="width: 310px;" required> </q-input>
             <q-select v-model="newPlayer.position" label="Posição" :options="positions" required></q-select>
             <q-input v-model="newPlayer.relevanciaBase" type="number" label="Relevância Base" required></q-input>
 
@@ -104,18 +117,20 @@
             <!-- Novos campos de avaliação -->
             <div class="q-mt-md">
               <div class="text-subtitle2">Passe</div>
-              <q-rating v-model="newPlayer.pass" size="lg" />
+              <q-rating color="primary" v-model="newPlayer.pass" size="lg" />
             </div>
             <div class="q-mt-md">
               <div class="text-subtitle2">Ataque</div>
-              <q-rating v-model="newPlayer.attack" size="lg" />
+              <q-rating color="primary" v-model="newPlayer.attack" size="lg" />
             </div>
             <div class="q-mt-md">
               <div class="text-subtitle2">Posicionamento</div>
-              <q-rating v-model="newPlayer.positioning" size="lg" />
+              <q-rating color="primary" v-model="newPlayer.positioning" size="lg" />
             </div>
-
-            <q-btn label="Adicionar" type="submit" color="primary" class="q-mt-md" />
+            <q-card-actions align="center">
+              <q-btn fab icon="add" label="Adicionar" type="submit" color="primary" class="q-mt-md flex flex-center" style="width: 45%;" />
+              <q-btn fab icon="close" class="q-ma-md flex flex-center" label="Cancelar" color="orange"  style="width: 45%;" v-close-popup />
+            </q-card-actions>
           </q-form>
         </q-card-section>
       </q-card>
@@ -123,13 +138,14 @@
 
     <!-- Modal para editar jogador -->
     <q-dialog v-model="editPlayerDialog">
-      <q-card>
+      <q-card class="flex" style="width: auto; max-width: 350px;">
         <q-card-section class="row items-center">
+          <q-icon name="edit" color="primary" size="32px" /> 
           <div class="text-h6">Editar Jogador</div>
         </q-card-section>
         <q-card-section>
           <q-form @submit.prevent="updatePlayer">
-            <q-input v-model="editingPlayer.name" label="Nome" required></q-input>
+            <q-input v-model="editingPlayer.name" label="Nome" style="width: 310px;" required></q-input>
             <q-select v-model="editingPlayer.position" :options="positions" label="Posição" required></q-select>
             <q-input v-model="editingPlayer.relevanciaBase" type="number" label="Relevância Base" required></q-input>
 
@@ -139,18 +155,20 @@
             <!-- Novos campos de avaliação -->
             <div class="q-mt-md">
               <div class="text-subtitle2">Passe</div>
-              <q-rating v-model="editingPlayer.pass" size="lg" />
+              <q-rating color="primary" v-model="editingPlayer.pass" size="lg" />
             </div>
             <div class="q-mt-md">
               <div class="text-subtitle2">Ataque</div>
-              <q-rating v-model="editingPlayer.attack" size="lg" />
+              <q-rating color="primary" v-model="editingPlayer.attack" size="lg" />
             </div>
             <div class="q-mt-md">
               <div class="text-subtitle2">Posicionamento</div>
-              <q-rating v-model="editingPlayer.positioning" size="lg" />
+              <q-rating color="primary" v-model="editingPlayer.positioning" size="lg" />
             </div>
-
-            <q-btn label="Atualizar" type="submit" color="primary" class="q-mt-md" />
+            <q-card-actions align="center">
+              <q-btn fab icon="refresh" label="Atualizar" type="submit" color="primary" class="q-mt-md flex flex-center" style="width: 45%;"/>
+              <q-btn fab icon="close" class="q-ma-md flex flex-center" label="Cancelar" color="orange"  style="width: 45%;" v-close-popup />
+            </q-card-actions>
           </q-form>
         </q-card-section>
       </q-card>
@@ -175,16 +193,6 @@ interface Player {
   positioning: number;
 }
 
-// interface Column {
-//   name: string;
-//   label: string;
-//   field: string | ((row: any) => any);
-//   align?: 'left' | 'center' | 'right';
-//   sortable?: boolean;
-//   format?: (val: any) => string;
-//   style?: string;
-//   required?: boolean;
-// }
 interface Column {
   name: string;
   label: string;
@@ -196,13 +204,6 @@ interface Column {
   required?: boolean;
 }
 
-// interface Team {
-//   players: Player[];
-//   totalRelevance: number;
-//   // menCount?: number;
-//   // womenCount?: number;
-// }
-
 interface ExcessOrDeficit {
     index: number;
     womenCount: number;
@@ -211,6 +212,7 @@ interface ExcessOrDeficit {
 export default defineComponent({
   setup() {
     const players: Ref<Player[]> = ref([]);
+    const selectedPlayer = ref<Player | null>(null); 
     const teams = ref<{ players: Player[]; totalRelevance: number }[]>([]);
     const showAddPlayerModal = ref(false);
     const newPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
@@ -268,7 +270,6 @@ export default defineComponent({
         align: 'left', 
         sortable: true 
       },
-      // Continue defining other columns as needed...
       {
         name: 'position',
         label: 'Posição',
@@ -278,17 +279,17 @@ export default defineComponent({
       },
       {
         name: 'relevanciaBase',
-        label: 'Relevância Base',
+        label: 'Relevância',
         field: 'relevanciaBase',
-        align: 'right',
+        align: 'left',
         sortable: true,
         format: (val: unknown): string => typeof val === 'number' ? val.toString() : ''
       },
       {
         name: 'relevanciaCalc',
-        label: 'Relevância Calculada',
+        label: 'Calculada',
         field: 'relevanciaCalc',
-        align: 'right',
+        align: 'left',
         sortable: true,
         format: (val: unknown): string => typeof val === 'number' ? val.toFixed(2) : ''
       },
@@ -308,8 +309,11 @@ export default defineComponent({
       newPlayer.value.relevanciaCalc = Number(calculateTotalRelevance(newPlayer.value));
     });
 
-    watch(() => [editingPlayer.value.pass, editingPlayer.value.attack, editingPlayer.value.positioning, editingPlayer.value.relevanciaBase], () => {
-      editingPlayer.value.relevanciaCalc = Number(calculateTotalRelevance(editingPlayer.value));
+    watch(() => editingPlayer.value, (currentEditingPlayer) => {
+      // Atualiza a relevância base baseada na posição atual.
+      currentEditingPlayer.relevanciaBase = relevanceByPosition[currentEditingPlayer.position] || 0;
+      // Recalcula a relevância total.
+      currentEditingPlayer.relevanciaCalc = calculateTotalRelevance(currentEditingPlayer);
     }, { deep: true });
 
     watch(players, () => {
@@ -383,17 +387,19 @@ export default defineComponent({
       }
     };
  
-    const confirmDelete = () => {
-      if (playerToDelete.value) {
-        deletePlayer(playerToDelete.value);
-        playerToDelete.value = null; // Reset após exclusão
-        isDeleteDialogOpen.value = false; // Fechar o diálogo após a exclusão
+    function confirmDelete() {
+      if (selectedPlayer.value) {
+        // Aqui você pode adicionar a lógica para excluir o jogador
+        console.log('Deletando jogador:', selectedPlayer.value.name);
+        // Supondo que você remova o jogador do array de jogadores
+        players.value = players.value.filter(p => p.id !== selectedPlayer.value!.id);
+        isDeleteDialogOpen.value = false;
       }
-    };
-    const promptDeletePlayer = (player: Player) => {
-      playerToDelete.value = player;
-      isDeleteDialogOpen.value = true;
-    };
+    }
+    function promptDeletePlayer(player: Player) {
+      selectedPlayer.value = player; // Define o jogador selecionado
+      isDeleteDialogOpen.value = true; // Abre o diálogo de exclusão
+    }
 
     function toggleAll(newValue: boolean) {
       selectAll.value = newValue;
@@ -416,11 +422,6 @@ export default defineComponent({
         // Ordena chaves de relevância em ordem decrescente
         const sortedKeys = Object.keys(groups).sort((a, b) => parseInt(b) - parseInt(a));
 
-        // Inicializa os times
-        // let newTeams = teamSizes.map(size => ({
-        //     players: [] as Player[],
-        //     totalRelevance: 0
-        // }));
         let newTeams = teamSizes.map(() => ({
           players: [] as Player[],
           totalRelevance: 0
@@ -567,7 +568,7 @@ export default defineComponent({
     loadPlayers();
 
     return {
-      players, deletePlayer, showAddPlayerModal, newPlayer, positions, editPlayerDialog, editingPlayer,
+      players, selectedPlayer, deletePlayer, showAddPlayerModal, newPlayer, positions, editPlayerDialog, editingPlayer,
       addPlayer, editPlayer, updatePlayer, selectedPlayers, teamInfo, formTeams, teams, selectAll,
       toggleAll, balanceWomen, mainTeamFormationProcess, columns, filteredColumns, isDeleteDialogOpen, confirmDelete, promptDeletePlayer
     };
@@ -609,5 +610,56 @@ export default defineComponent({
 .q-input, .q-select {
   width: 100%; /* Faz com que inputs e selects ocupem toda a largura disponível */
   margin-bottom: 10px; /* Adiciona espaço abaixo dos campos de input */
+}
+
+.teams-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 50px; /* Espaço entre os containers dos times */
+  justify-content: center; /* Centraliza os containers na página */
+}
+
+.team-table {
+  border: 1px solid #e0e0e0;
+  margin-bottom: 20px;
+  width: auto; /* Permite que a tabela ajuste sua largura */
+  min-width: 300px; /* Mínimo de largura para cada tabela */
+  max-width: 100%; /* Máximo de largura para evitar overflow */
+  border-collapse: collapse; /* Colapso de borda para visualização consistente */
+  margin: 10px 0; /* Margem para separação vertical */
+}
+
+.team-header {
+  background-color: #1976D2; /* Cor de fundo primária */
+  color: white;                     /* Texto em branco */
+  text-align: center;               /* Texto centralizado */
+  font-weight: bold;                /* Texto em negrito */
+  padding: 8px;                     /* Padding para o texto no cabeçalho */
+}
+
+.team-row {
+  height: 30px;  /* Usando 'height' para garantir que o tamanho da linha seja fixo */
+  line-height: 30px;  /* Altura da linha para controlar o conteúdo */
+  vertical-align: middle;  /* Alinha verticalmente o texto dentro das células */
+}
+
+.team-cell {
+  text-align: left;                 /* Alinha o texto à esquerda */
+  padding: 0 8px;                     /* Espaçamento interno nas células */
+  vertical-align: middle;           /* Centraliza o conteúdo das células verticalmente */
+  border-top: 1px solid #e0e0e0;
+}
+
+.team-cell:nth-child(1) {
+  width: 55%;                       /* Coluna do nome */
+}
+
+.team-cell:nth-child(2) {
+  width: 28%;                       /* Coluna da posição */
+}
+
+.team-cell:nth-child(3) {
+  width: 17%;                       /* Coluna da relevância */
+  text-align: right;                /* Alinha os números à direita */
 }
 </style>
