@@ -141,7 +141,7 @@
       <q-card class="flex" style="width: auto; max-width: 350px;">
         <q-card-section class="row items-center">
           <q-icon name="edit" color="primary" size="32px" /> 
-          <div class="text-h6">Editar Jogador</div>
+          <div class="text-h6">Editar {{ selectedPlayer?.gender === 'Homem' ? 'jogador' : 'jogadora' }}</div>
         </q-card-section>
         <q-card-section>
           <q-form @submit.prevent="updatePlayer">
@@ -360,6 +360,7 @@ export default defineComponent({
 
     function editPlayer(player: Player) {
       editingPlayer.value = { ...player };
+      selectedPlayer.value = player;
       editPlayerDialog.value = true;
     }
 
@@ -379,7 +380,6 @@ export default defineComponent({
     }
 
     const isDeleteDialogOpen = ref(false);
-    const playerToDelete: Ref<Player | null> = ref(null);
     const deletePlayer = (player: Player) => {
       const index = players.value.findIndex(p => p.id === player.id);
       if (index !== -1) {
@@ -389,9 +389,6 @@ export default defineComponent({
  
     function confirmDelete() {
       if (selectedPlayer.value) {
-        // Aqui você pode adicionar a lógica para excluir o jogador
-        console.log('Deletando jogador:', selectedPlayer.value.name);
-        // Supondo que você remova o jogador do array de jogadores
         players.value = players.value.filter(p => p.id !== selectedPlayer.value!.id);
         isDeleteDialogOpen.value = false;
       }
