@@ -62,7 +62,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-
+    <div class="actions">
     <q-btn
       fab
       color="primary"
@@ -82,6 +82,7 @@
       :disabled="teamInfo.teams === 0"
       style="width: 200px;"
     />
+    </div>
     <q-toggle v-model="balanceWomen" label="EQUILIBRAR MULHERES" class="q-ma-md" color="orange" />
 
     <q-banner>
@@ -112,7 +113,7 @@
 
     <!-- Modal para adicionar jogador -->
     <q-dialog v-model="showAddPlayerModal">
-      <q-card class="flex" style="max-width: 350px;">
+      <q-card class="flex" style="max-width: 360px;">
         <q-card-section class="row items-center">
           <q-icon name="add" color="primary" size="32px" /> 
           <div class="text-h6">Adicionar Jogador</div>
@@ -150,7 +151,7 @@
 
     <!-- Modal para editar jogador -->
     <q-dialog v-model="editPlayerDialog">
-      <q-card class="flex" style="width: auto; max-width: 350px;">
+      <q-card class="flex" style="width: auto; max-width: 360px;">
         <q-card-section class="row items-center">
           <q-icon name="edit" color="primary" size="32px" /> 
           <div class="text-h6">Editar {{ selectedPlayer?.gender === 'Homem' ? 'jogador' : 'jogadora' }}</div>
@@ -821,9 +822,5 @@ export default defineComponent({
   justify-content: space-around;
   width: 100%;
   max-width: 600px;
-}
-
-.full-width {
-  width: 100%;
 }
 </style>
