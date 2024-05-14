@@ -1,6 +1,12 @@
 <template>
   <q-page class="row items-center justify-evenly">
+    <div class="actions">
+      <q-btn fab icon="download" label="Salvar Dados" color="accent" class="q-ma-md flex flex-center" style="width: 200px;" :disabled="players.length === 0" @click="saveDataToFile" />
+      <q-file v-model="selectedFile" label="Selecione o Arquivo JSON" filled class="q-ma-md" @update:model-value="handleFileChange"/>
+      <q-btn fab icon="upload" label="Carregar Dados" color="secondary" class="q-ma-md flex flex-center" style="width: 200px;" @click="loadDataFromFile" />
+    </div>
     <q-table
+      v-if="players.length > 0"
       title="Jogadores de Vôlei"
       :rows="players"
       :columns="columns"
@@ -12,7 +18,10 @@
         <q-tr>
           <q-th>
             <q-checkbox v-model="selectAll" color="green" @update:model-value="toggleAll" />
-            Selecionar Todos
+            <q-btn flat label="Selecionar Todos" color="green" />
+          </q-th>
+          <q-th>
+            <q-btn flat icon="delete" label="Excluir Selecionados" color="negative" @click="deleteSelectedPlayers" />
           </q-th>
           <q-th v-for="col in columns" :key="col.name"></q-th>
         </q-tr>
@@ -34,6 +43,9 @@
         </q-tr>
       </template>
     </q-table>
+    <div v-else>
+      <q-banner class="text-center text-subtitle1">Nenhum jogador carregado</q-banner>
+    </div>
     
     <q-dialog v-model="isDeleteDialogOpen">
       <q-card class="flex flex-center" style="width: auto; max-width: 350px;">
@@ -178,6 +190,7 @@
 
 <script lang="ts">
 import { defineComponent, ref, Ref, watch, computed } from 'vue';
+import { Notify } from 'quasar';
 
 interface Player {
   id: number;
@@ -231,11 +244,24 @@ export default defineComponent({
       'Central': 100,
       'Oposto': 50,      
       'Líbero': 10,
-      'Indefinido': 1
+      'Indefinido': 10
     };
 
     const selectAll = ref(false);
     const selectedPlayers = computed(() => players.value.filter(p => p.selected));
+    const deleteSelectedPlayers = () => {
+      if (confirm('Você realmente deseja excluir os jogadores selecionados?')) {
+        const count = players.value.filter((p) => p.selected).length;
+        players.value = players.value.filter((player) => !player.selected);
+        selectAll.value = false;
+        Notify.create({
+          color: 'negative',
+          message: `${count} jogador(es) excluído(s)`,
+          icon: 'delete',
+          timeout: 2000,
+        });
+      }
+    };
     const balanceWomen: Ref<boolean> = ref(false);
 
     const teamInfo = computed(() => {
@@ -309,12 +335,26 @@ export default defineComponent({
       newPlayer.value.relevanciaCalc = Number(calculateTotalRelevance(newPlayer.value));
     });
 
-    watch(() => editingPlayer.value, (currentEditingPlayer) => {
-      // Atualiza a relevância base baseada na posição atual.
-      currentEditingPlayer.relevanciaBase = relevanceByPosition[currentEditingPlayer.position] || 0;
-      // Recalcula a relevância total.
-      currentEditingPlayer.relevanciaCalc = calculateTotalRelevance(currentEditingPlayer);
-    }, { deep: true });
+    watch(
+      () => [
+        editingPlayer.value.position,
+        editingPlayer.value.pass,
+        editingPlayer.value.attack,
+        editingPlayer.value.positioning,
+        editingPlayer.value.relevanciaBase
+      ],
+      ([newPosition, newPass, newAttack, newPositioning, newRelevanciaBase], [oldPosition, oldPass, oldAttack, oldPositioning, oldRelevanciaBase]) => {
+        // Atualiza a relevância base apenas se a posição mudou
+        if (newPosition !== oldPosition) {
+          editingPlayer.value.relevanciaBase = relevanceByPosition[newPosition] || 0;
+        }
+        // Recalcula a relevância calculada se qualquer um desses valores mudar
+        if (newPosition !== oldPosition || newPass !== oldPass || newAttack !== oldAttack || newPositioning !== oldPositioning || newRelevanciaBase !== oldRelevanciaBase) {
+          editingPlayer.value.relevanciaCalc = calculateTotalRelevance(editingPlayer.value);
+        }
+      },
+      { deep: true }
+    )
 
     watch(players, () => {
       savePlayers();
@@ -336,24 +376,34 @@ export default defineComponent({
     }
 
     function savePlayers() {
-      localStorage.setItem('players', JSON.stringify(players.value.map(player => ({
+      // Mapeia cada jogador para incluir relevanciaCalc na estrutura de dados
+      const dataToSave = players.value.map(player => ({
         ...player,
-        relevanciaCalc: undefined
-      }))));
+        relevanciaCalc: calculateTotalRelevance(player)  // Assegura que relevanciaCalc está atualizada
+      }));
+
+      localStorage.setItem('players', JSON.stringify(dataToSave));
     }
 
     function addPlayer() {
       const newId = players.value.length > 0 ? Math.max(...players.value.map(p => p.id)) + 1 : 1;
       const newOrder = players.value.length + 1;
+      const relevanciaCalc = Number(calculateTotalRelevance(newPlayer.value))
 
       const playerToAdd: Player = {
         ...newPlayer.value,
         id: newId,
         order: newOrder,
-        relevanciaCalc: Number(calculateTotalRelevance(newPlayer.value))
+        relevanciaCalc
       };
 
       players.value.push(playerToAdd);
+      Notify.create({
+              color: 'primary',
+              message: 'Jogador Adicionado com sucesso!',
+              icon: 'check',
+              timeout: 2000,
+            });
       showAddPlayerModal.value = false;
       resetNewPlayer();
     }
@@ -372,6 +422,12 @@ export default defineComponent({
           relevanciaCalc: Number(calculateTotalRelevance(editingPlayer.value))
         };
       }
+      Notify.create({
+              color: 'primary',
+              message: 'Jogador Alterado com sucesso!',
+              icon: 'check',
+              timeout: 2000,
+            });
       editPlayerDialog.value = false;
     }
 
@@ -380,19 +436,21 @@ export default defineComponent({
     }
 
     const isDeleteDialogOpen = ref(false);
-    const deletePlayer = (player: Player) => {
-      const index = players.value.findIndex(p => p.id === player.id);
-      if (index !== -1) {
-        players.value.splice(index, 1);
-      }
-    };
  
     function confirmDelete() {
-      if (selectedPlayer.value) {
-        players.value = players.value.filter(p => p.id !== selectedPlayer.value!.id);
+      if (selectedPlayer.value && typeof selectedPlayer.value.id === 'number') {
+        const selectedId = selectedPlayer.value.id;
+        players.value = players.value.filter(p => p.id !== selectedId);
+        Notify.create({
+          color: 'negative',
+          message: 'Jogador excluído',
+          icon: 'delete',
+          timeout: 2000,
+        });
         isDeleteDialogOpen.value = false;
       }
     }
+
     function promptDeletePlayer(player: Player) {
       selectedPlayer.value = player; // Define o jogador selecionado
       isDeleteDialogOpen.value = true; // Abre o diálogo de exclusão
@@ -423,7 +481,6 @@ export default defineComponent({
           players: [] as Player[],
           totalRelevance: 0
         }));
-
 
         // Distribuir jogadores começando do grupo de maior relevância
         sortedKeys.forEach(key => {
@@ -560,14 +617,105 @@ export default defineComponent({
         if (balanceWomen.value) {
             balanceTeamsByGender(); // Equilibra os times se o toggle estiver ativado
         }
+        Notify.create({
+              color: 'green',
+              message: 'Times Escolhidos com sucesso!',
+              icon: 'check',
+              timeout: 2000,
+            });
     }
 
     loadPlayers();
 
+    // Função para salvar os dados de localStorage em um arquivo JSON
+    function saveDataToFile() {
+       // Recupere os dados do localStorage
+      const data = localStorage.getItem('players');
+      if (data) {
+        const blob = new Blob([data], { type: 'application/json' });
+        const href = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = href;
+        link.download = 'players_data.json'; // Nome do arquivo para download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(href);
+        Notify.create({
+          color: 'accent',
+          message: 'Dados salvos em arquivo JSON com sucesso!',
+          icon: 'download',
+          timeout: 2000,
+        });
+      } else {
+        Notify.create({
+          color: 'negative',
+          message: 'Dados não foram salvos em arquivo JSON.',
+          icon: 'error',
+          timeout: 2000,
+        });
+      }
+    }
+
+    const selectedFile = ref<File | null>(null);
+    const handleFileChange = (file: File | null) => {
+      selectedFile.value = file;
+    };
+
+    function loadDataFromFile() {
+      const file = selectedFile.value;
+      if (file && file.name.endsWith('.json')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target?.result as string);
+            players.value = data;
+            localStorage.setItem('players', JSON.stringify(data));
+            Notify.create({
+              color: 'secondary',
+              message: 'Dados carregados com sucesso!',
+              icon: 'upload',
+              timeout: 2000,
+            });
+          } catch (err) {
+            Notify.create({
+              color: 'negative',
+              message: 'Falha ao carregar o arquivo JSON!',
+              icon: 'error',
+              timeout: 2000,
+            });
+          }
+        };
+        reader.onerror = () => {
+          Notify.create({
+            color: 'negative',
+            message: 'Erro ao ler o arquivo!',
+            icon: 'error',
+            timeout: 2000,
+          });
+        };
+        reader.readAsText(file);
+      } else {
+        Notify.create({
+          color: 'negative',
+          message: 'Selecione um arquivo JSON válido!',
+          icon: 'error',
+          timeout: 2000,
+        });
+      }
+    }
+     // Watches players to update localStorage whenever it changes
+     watch(() => localStorage.getItem('players'), newValue => {
+      if (newValue) {
+        players.value = JSON.parse(newValue);
+      }
+    });
+
     return {
-      players, selectedPlayer, deletePlayer, showAddPlayerModal, newPlayer, positions, editPlayerDialog, editingPlayer,
+      players, selectedPlayer, deleteSelectedPlayers, showAddPlayerModal, newPlayer, positions, editPlayerDialog, editingPlayer,
       addPlayer, editPlayer, updatePlayer, selectedPlayers, teamInfo, formTeams, teams, selectAll,
-      toggleAll, balanceWomen, mainTeamFormationProcess, columns, filteredColumns, isDeleteDialogOpen, confirmDelete, promptDeletePlayer
+      toggleAll, balanceWomen, mainTeamFormationProcess, columns, filteredColumns, isDeleteDialogOpen, confirmDelete, promptDeletePlayer,
+      saveDataToFile, loadDataFromFile, selectedFile, handleFileChange
     };
 
   }
@@ -658,5 +806,24 @@ export default defineComponent({
 .team-cell:nth-child(3) {
   width: 17%;                       /* Coluna da relevância */
   text-align: right;                /* Alinha os números à direita */
+}
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  width: 100%;
+  max-width: 600px;
+}
+
+.full-width {
+  width: 100%;
 }
 </style>
