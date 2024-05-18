@@ -5,12 +5,10 @@ import { initializeApp } from 'firebase/app';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: 'AIzaSyBxRYTZNsPMYopXOYoo4oKP3oDDXul1GNk',
-  authDomain: 'banco-de-dados-seletor-times.firebaseapp.com',
-  projectId: 'banco-de-dados-seletor-times',
-  storageBucket: 'banco-de-dados-seletor-times.appspot.com',
-  messagingSenderId: '984050813264',
-  appId: '1:984050813264:web:65b421ac3e82a57530c455'
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  appId: process.env.FIREBASE_APP_ID,
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
 };
 
 // Initialize Firebase

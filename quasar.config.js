@@ -13,6 +13,7 @@
 
 
 const { configure } = require('quasar/wrappers');
+require('dotenv').config(); // This loads the .env file
 
 module.exports = configure(function (ctx) {
   return {
