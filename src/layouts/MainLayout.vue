@@ -15,6 +15,8 @@
           Seletor: Times Vôlei
         </q-toolbar-title>
 
+        <q-btn color="white" flat to="login">Log In</q-btn>
+
         <div>Quasar v{{ $q.version }}</div>
       </q-toolbar>
     </q-header>
@@ -97,21 +99,5 @@ import { defineComponent } from 'vue';
 
 export default defineComponent({
    name: 'MainLayout',
-
-//   components: {
-//     EssentialLink
-//   },
-
-//   setup () {
-//     const leftDrawerOpen = ref(false)
-
-//     return {
-//       essentialLinks: linksList,
-//       leftDrawerOpen,
-//       toggleLeftDrawer () {
-//         leftDrawerOpen.value = !leftDrawerOpen.value
-//       }
-//     }
-//   }
 });
 </script>

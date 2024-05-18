@@ -13,7 +13,6 @@
 
 
 const { configure } = require('quasar/wrappers');
-require('dotenv').config(); // This loads the .env file
 
 module.exports = configure(function (ctx) {
   return {
@@ -34,8 +33,7 @@ module.exports = configure(function (ctx) {
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-webpack/boot-files
     boot: [
-      
-      
+     'firebase' 
     ],
 
     // https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js#Property%3A-css
@@ -60,7 +58,7 @@ module.exports = configure(function (ctx) {
     // Full list of options: https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js#Property%3A-build
     build: {
       vueRouterMode: 'hash', // available values: 'hash', 'history'
-
+      env: require('dotenv').config().parsed
       // transpile: false,
       // publicPath: '/',
 
