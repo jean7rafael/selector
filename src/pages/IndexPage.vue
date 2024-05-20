@@ -140,6 +140,14 @@
               <div class="text-subtitle2">Posicionamento</div>
               <q-rating color="primary" v-model="newPlayer.positioning" size="lg" />
             </div>
+            <div class="q-mt-md">
+            <div class="text-subtitle2">Bloqueio</div>
+              <q-rating color="primary" v-model="newPlayer.block" size="lg" />
+            </div>
+            <div class="q-mt-md">
+              <div class="text-subtitle2">Saque</div>
+              <q-rating color="primary" v-model="newPlayer.serve" size="lg" />
+            </div>
             <q-card-actions align="center">
               <q-btn fab icon="add" label="Adicionar" type="submit" color="primary" class="q-mt-md flex flex-center" style="width: 45%;" />
               <q-btn fab icon="close" class="q-ma-md flex flex-center" label="Cancelar" color="orange"  style="width: 45%;" v-close-popup />
@@ -178,6 +186,14 @@
               <div class="text-subtitle2">Posicionamento</div>
               <q-rating color="primary" v-model="editingPlayer.positioning" size="lg" />
             </div>
+            <div class="q-mt-md">
+            <div class="text-subtitle2">Bloqueio</div>
+              <q-rating color="primary" v-model="editingPlayer.block" size="lg" />
+            </div>
+            <div class="q-mt-md">
+              <div class="text-subtitle2">Saque</div>
+              <q-rating color="primary" v-model="editingPlayer.serve" size="lg" />
+            </div>
             <q-card-actions align="center">
               <q-btn fab icon="refresh" label="Atualizar" type="submit" color="primary" class="q-mt-md flex flex-center" style="width: 45%;"/>
               <q-btn fab icon="close" class="q-ma-md flex flex-center" label="Cancelar" color="orange"  style="width: 45%;" v-close-popup />
@@ -205,6 +221,8 @@ interface Player {
   pass: number;
   attack: number;
   positioning: number;
+  block: number;
+  serve: number;
 }
 
 interface Column {
@@ -229,13 +247,13 @@ export default defineComponent({
     const selectedPlayer = ref<Player | null>(null); 
     const teams = ref<{ players: Player[]; totalRelevance: number }[]>([]);
     const showAddPlayerModal = ref(false);
-    const newPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
+    const newPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: 0, pass: 0, attack: 0, positioning: 0, block: 0, serve: 0 });
     const editPlayerDialog = ref(false);
-    const editingPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: 0, pass: 0, attack: 0, positioning: 0 });
+    const editingPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: 0, pass: 0, attack: 0, positioning: 0, block: 0, serve: 0 });
     const positions = ['Central', 'Levantador', 'Líbero', 'Oposto', 'Ponteiro', 'Indefinido'];
     
     const calculateTotalRelevance = (player: Player) => {
-      const bonusMultiplier = Number((player.pass + player.attack + player.positioning) / 15);
+      const bonusMultiplier = Number((player.pass + player.attack + player.positioning + player.block + player.serve) / 25);
       return Number(Math.round(player.relevanciaBase * (1 + bonusMultiplier)));   
     };
 
@@ -342,15 +360,17 @@ export default defineComponent({
         editingPlayer.value.pass,
         editingPlayer.value.attack,
         editingPlayer.value.positioning,
+        editingPlayer.value.block,
+        editingPlayer.value.serve,
         editingPlayer.value.relevanciaBase
       ],
-      ([newPosition, newPass, newAttack, newPositioning, newRelevanciaBase], [oldPosition, oldPass, oldAttack, oldPositioning, oldRelevanciaBase]) => {
+      ([newPosition, newPass, newAttack, newPositioning, newBlock, newServe, newRelevanciaBase], [oldPosition, oldPass, oldAttack, oldPositioning, oldBlock, oldServe, oldRelevanciaBase]) => {
         // Atualiza a relevância base apenas se a posição mudou
         if (newPosition !== oldPosition) {
           editingPlayer.value.relevanciaBase = relevanceByPosition[newPosition] || 0;
         }
         // Recalcula a relevância calculada se qualquer um desses valores mudar
-        if (newPosition !== oldPosition || newPass !== oldPass || newAttack !== oldAttack || newPositioning !== oldPositioning || newRelevanciaBase !== oldRelevanciaBase) {
+        if (newPosition !== oldPosition || newPass !== oldPass || newAttack !== oldAttack || newPositioning !== oldPositioning || newBlock !== oldBlock || newServe !== oldServe || newRelevanciaBase !== oldRelevanciaBase) {
           editingPlayer.value.relevanciaCalc = calculateTotalRelevance(editingPlayer.value);
         }
       },
@@ -371,6 +391,8 @@ export default defineComponent({
           pass: Number(player.pass || 0),
           attack: Number(player.attack || 0),
           positioning: Number(player.positioning || 0),
+          block: Number(player.block || 0),
+          serve: Number(player.serve || 0),
           relevanciaCalc: Number(calculateTotalRelevance(player))
         }));
       }
@@ -433,7 +455,7 @@ export default defineComponent({
     }
 
     function resetNewPlayer() {
-      newPlayer.value = { id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: players.value.length + 1, pass: 0, attack: 0, positioning: 0 };
+      newPlayer.value = { id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: players.value.length + 1, pass: 0, attack: 0, positioning: 0, block: 0, serve: 0 };
     }
 
     const isDeleteDialogOpen = ref(false);
