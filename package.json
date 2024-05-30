@@ -11,7 +11,8 @@
     "test": "echo \"No test specified\" && exit 0",
     "dev": "quasar dev --port 3003",
     "dev:firebase": "firebase emulators:start --only auth,firestore,hosting --import=firebase_sample_data",
-    "build": "quasar build"
+    "build": "quasar build",
+    "build:debug": "quasar build --debug"
   },
   "dependencies": {
     "@quasar/extras": "^1.0.0",
