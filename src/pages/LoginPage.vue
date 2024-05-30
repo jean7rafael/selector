@@ -34,7 +34,8 @@
 <script>
 import { useQuasar } from 'quasar'
 import { ref } from 'vue'
-import { getAuth, signInWithEmailAndPassword, connectAuthEmulator } from 'firebase/auth'
+import { signInWithEmailAndPassword, connectAuthEmulator, onAuthStateChanged } from 'firebase/auth'
+import { firebaseAuth } from '../boot/firebase.js';
 
 export default {
   setup () {
@@ -43,30 +44,36 @@ export default {
     const email = ref(null)
     const password = ref(null)
 
-    const auth = getAuth();
-    connectAuthEmulator(auth, 'http://127.0.0.1:9099');
+    connectAuthEmulator(firebaseAuth, 'http://127.0.0.1:9099');
+    const user = firebaseAuth.currentUser;
+    console.log('auth=', firebaseAuth);
+    console.log('currenUserFromAuth=', firebaseAuth.currentUser);
+    console.log('auth.qe=', firebaseAuth.qe);
+    console.log('auth.clientVersion=', firebaseAuth.clientVersion);
+    console.log('currentUser2=', user);
 
     return {
       email,
       password,
 
       onSubmit () {
-          signInWithEmailAndPassword(auth, email, password)
+          signInWithEmailAndPassword(auth, email.value, password.value)
             .then(userCredentials => {
               console.log('User logged in successfully');
               console.log(userCredentials);
+              $q.notify({
+                type: 'positive',
+                message: `Seja bem-vindo ${userCredentials.user.displayName}`
+              })
             })
             .catch(error => {
-              console.error('error during login');
+              $q.notify({
+                type: 'negative',
+                message: 'Não foi possível logar. Tente novamente.'
+              })
               console.log(error);
             })
 
-          $q.notify({
-            color: 'green-4',
-            textColor: 'white',
-            icon: 'cloud_done',
-            message: 'Submitted'
-          })
          email.value = null
          password.value = null
         }

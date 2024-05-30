@@ -9,8 +9,8 @@
     "lint": "eslint --ext .js,.ts,.vue ./",
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "echo \"No test specified\" && exit 0",
-    "dev": "quasar dev",
-    "dev:firebase": "npm run build && firebase emulators:start --only auth,firestore,hosting",
+    "dev": "quasar dev --port 3003",
+    "dev:firebase": "firebase emulators:start --only auth,firestore,hosting --import=firebase_sample_data",
     "build": "quasar build"
   },
   "dependencies": {
