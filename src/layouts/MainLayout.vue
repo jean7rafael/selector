@@ -1,9 +1,10 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <!-- <q-layout view="lHh Lpr lFf"> -->
+  <q-layout view="hHh lpR fFf">
     <q-header elevated>
       <q-toolbar>
 
-        <q-btn flat round dense icon="menu" class="q-mr-sm" />
+        <q-btn flat round dense icon="menu" class="q-mr-sm" @click="toggleLeftDrawer" />
         <q-separator dark vertical inset />
         <q-btn color="white" flat to="/">Volei Hub</q-btn>
         <q-space />
@@ -11,25 +12,9 @@
       </q-toolbar>
     </q-header>
 
-    <!-- <q-drawer
-      v-model="leftDrawerOpen"
-      show-if-above
-      bordered
-    >
-      <q-list>
-        <q-item-label
-          header
-        >
-          Menu
-        </q-item-label>
-
-        <EssentialLink
-          v-for="link in essentialLinks"
-          :key="link.title"
-          v-bind="link"
-        />
-      </q-list>
-    </q-drawer> -->
+    <q-drawer show-if-above v-model="leftDrawerOpen" side="left" behavior="normal" bordered>
+      <!-- drawer content -->
+    </q-drawer>
 
     <q-page-container>
       <router-view />
@@ -37,10 +22,13 @@
   </q-layout>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { ref } from 'vue';
 
-export default defineComponent({
-   name: 'MainLayout',
-});
+    const leftDrawerOpen = ref(false)
+
+function toggleLeftDrawer () {
+  leftDrawerOpen.value = !leftDrawerOpen.value
+}
+
 </script>
