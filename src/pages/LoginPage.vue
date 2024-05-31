@@ -1,10 +1,12 @@
 <template>
     <div class="q-pa-md" style="max-width: 400px">
-
-      <p v-if="currentUser">Já autenticado como " {{ currentUser.displayName }} "</p>
+      <div v-if="currentUser"> 
+        <p>Autenticado como "{{ currentUser.displayName }}"</p>
+          <q-btn label="Sair" color="primary" @click="onLogout"/>
+      </div>
       <div v-else> 
         <q-form
-          @submit="onSubmit"
+          @submit="onLogin"
           class="q-gutter-md"
         >
           <q-input
@@ -33,73 +35,66 @@
     </div>
 </template>
 
-<script>
+<script setup>
 import { useQuasar } from 'quasar'
-import { ref } from 'vue'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { ref, watch } from 'vue'
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { firebaseAuth, getCurrentUser } from '../boot/firebase.js';
+import { useRoute } from 'vue-router';
 
-export default {
-  setup () {
-    const $q = useQuasar();
-    const email = ref(null);
-    const password = ref(null);
+const $q = useQuasar();
+const email = ref(null);
+const password = ref(null);
+const currentUser = ref(null);
+const route = useRoute();
 
-    return {
-      email,
-      password,
-      onSubmit () {
-          signInWithEmailAndPassword(firebaseAuth, email.value, password.value)
-            .then(userCredentials => {
-              console.log('User logged in successfully');
-              console.log(userCredentials);
-              $q.notify({
-                type: 'positive',
-                message: `Seja bem-vindo ${userCredentials.user.displayName}`
-              })
-            })
-            .catch(() => {
-              $q.notify({
-                type: 'negative',
-                message: 'Não foi possível logar. Tente novamente.'
-              })
-            })
 
-         email.value = null
-         password.value = null
-        }
-    }
-  },
-  data() {
-    return {
-      currentUser: null,
-    }
-  },
-  async beforeRouteEnter(to, from, next) {
-    try {
-      console.log('beforeRouteEnter: about to call getCurrentUser()');
-      const possibleUser = await getCurrentUser();
-      console.log('beforeRouteEnter: just called getCurrentUser()');
-      console.log('possibleUser=', possibleUser);
-      next(vm => vm.setUser(possibleUser))
-    } catch (err) {
-      console.log('beforeRouteEnter: error when calling getCurrentUser()');
-      console.log('error=', err);
-      // `setError` is a method defined below
-      next(vm => vm.setUser(null))
-    }
-  },
-  // when route changes and this component is already rendered,
-  // the logic will be slightly different.
-  beforeRouteUpdate(to, from) {
-    this.currentUser = null
-    getCurrentUser().then(this.setUser).catch(this.setUser)
-  },
-  methods: {
-    setUser(user) {
-      this.currentUser = user
-      console.log('userOnRouterStuff=', user);
-    }
+watch(() => route.params.id, fetchData, {immediate: true});
+
+function onLogin () {
+  signInWithEmailAndPassword(firebaseAuth, email.value, password.value)
+    .then(userCredentials => {
+      $q.notify({
+        type: 'positive',
+        message: `Seja bem-vindo ${userCredentials.user.displayName}`
+      })
+      currentUser.value = userCredentials.user;
+    })
+    .catch(() => {
+      $q.notify({
+        type: 'negative',
+        message: 'Não foi possível logar. Tente novamente.'
+      })
+    })
+    email.value = null
+    password.value = null
+}
+
+async function onLogout () {
+  console.log('llemos - currentUser.value.displayName=', currentUser.value);
+  try {
+    const user = currentUser.value.displayName;
+    await signOut(firebaseAuth);
+    currentUser.value = null;
+    $q.notify({
+      type: 'info',
+      message:`${user} deslogado com sucesso`
+    });
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: 'Não foi possível deslogar'
+    });
+    console.error(err);
   }
 }
+
+async function fetchData() {
+  try {
+    currentUser.value = await getCurrentUser();
+  } catch (err) {
+    currentUser.value = null;
+  }
+}
+
 </script>
