@@ -19,6 +19,11 @@ jobs:
         run: npm install
 
       - name: Build
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.STAGE_FIREBASE_PROJECT_ID }}
+          FIREBASE_APP_ID: ${{ secrets.STAGE_FIREBASE_APP_ID }}
+          FIREBASE_API_KEY: ${{ secrets.STAGE_FIREBASE_API_KEY }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.STAGE_FIREBASE_AUTH_DOMAIN }}
         run: npm run build
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
