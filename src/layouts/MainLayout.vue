@@ -23,26 +23,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, provide, onBeforeMount } from 'vue';
 import { getCurrentUser } from '../boot/firebase.js';
-import { useRoute } from 'vue-router';
 
 const currentUser = ref(null);
-const leftDrawerOpen = ref(false);
-const route = useRoute();
 
-watch(() => route.params.id, fetchData, {immediate: true});
+onBeforeMount(/*async*/ () => {
+    //currentUser.value = /*await*/ getCurrentUser();
+    getCurrentUser().then(user => {
+      currentUser.value = user
+      provide('currentUser', currentUser);
+      console.log('llemos - providing currentUser.value', currentUser.value);
+    });
+});
+const leftDrawerOpen = ref(false);
 
 function toggleLeftDrawer () {
   leftDrawerOpen.value = !leftDrawerOpen.value
-}
-
-async function fetchData() {
-  try {
-    currentUser.value = await getCurrentUser();
-  } catch (err) {
-    currentUser.value = null;
-  }
 }
 
 </script>

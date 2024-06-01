@@ -1,7 +1,8 @@
 <template>
     <div class="q-pa-md" style="max-width: 400px">
+      <p> {{ currentUser }} </p>
       <div v-if="currentUser"> 
-        <p>Autenticado como "{{ currentUser.displayName }}"</p>
+        <p>Autenticado como "{{ currentUser.value.displayName }}"</p>
           <q-btn label="Sair" color="primary" @click="onLogout"/>
       </div>
       <div v-else> 
@@ -37,19 +38,16 @@
 
 <script setup>
 import { useQuasar } from 'quasar'
-import { ref, watch } from 'vue'
+import { ref, inject } from 'vue'
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
-import { firebaseAuth, getCurrentUser } from '../boot/firebase.js';
-import { useRoute } from 'vue-router';
+import { firebaseAuth } from '../boot/firebase.js';
 
+const currentUser = inject('currentUser');
 const $q = useQuasar();
 const email = ref(null);
 const password = ref(null);
-const currentUser = ref(null);
-const route = useRoute();
+console.log('llemos - injected currentUser=', currentUser);
 
-
-watch(() => route.params.id, fetchData, {immediate: true});
 
 function onLogin () {
   signInWithEmailAndPassword(firebaseAuth, email.value, password.value)
@@ -86,14 +84,6 @@ async function onLogout () {
       message: 'Não foi possível deslogar'
     });
     console.error(err);
-  }
-}
-
-async function fetchData() {
-  try {
-    currentUser.value = await getCurrentUser();
-  } catch (err) {
-    currentUser.value = null;
   }
 }
 
