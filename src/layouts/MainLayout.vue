@@ -12,7 +12,7 @@
       </q-toolbar>
     </q-header>
 
-    <q-drawer show-if-above v-model="leftDrawerOpen" side="left" behavior="normal" bordered>
+    <q-drawer v-model="leftDrawerOpen" side="left" behavior="normal" bordered>
       <!-- drawer content -->
     </q-drawer>
 

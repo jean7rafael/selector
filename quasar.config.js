@@ -13,6 +13,7 @@
 
 
 const { configure } = require('quasar/wrappers');
+require('dotenv').config()
 
 module.exports = configure(function (ctx) {
   return {
@@ -58,7 +59,12 @@ module.exports = configure(function (ctx) {
     // Full list of options: https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js#Property%3A-build
     build: {
       vueRouterMode: 'hash', // available values: 'hash', 'history'
-      env: require('dotenv').config().parsed
+      env: {
+        FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+        FIREBASE_APP_ID: process.env.FIREBASE_APP_ID,
+        FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
+        FIREBASE_AUTH_DOMAIN: process.env.FIREBASE_AUTH_DOMAIN,
+      }
       // transpile: false,
       // publicPath: '/',
 

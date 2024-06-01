@@ -1,7 +1,7 @@
 <template>
     <div class="q-pa-md" style="max-width: 400px">
       <div v-if="currentUser"> 
-        <p>Autenticado como "{{ currentUser.displayName }}"</p> 
+        <p>Autenticado como "{{ currentUser.email }}"</p> 
           <q-btn label="Sair" color="primary" @click="onLogout"/>
       </div>
       <div v-else> 
