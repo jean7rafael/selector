@@ -1,5 +1,4 @@
 <template>
-  <h1>llleeemmoooosss</h1>
   <router-view />
 </template>
 

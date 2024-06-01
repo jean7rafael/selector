@@ -1,8 +1,7 @@
 <template>
     <div class="q-pa-md" style="max-width: 400px">
-      <p> {{ currentUser }} </p>
       <div v-if="currentUser"> 
-        <p>Autenticado como "{{ currentUser.value.displayName }}"</p>
+        <p>Autenticado como "{{ currentUser.displayName }}"</p> 
           <q-btn label="Sair" color="primary" @click="onLogout"/>
       </div>
       <div v-else> 
@@ -46,8 +45,6 @@ const currentUser = inject('currentUser');
 const $q = useQuasar();
 const email = ref(null);
 const password = ref(null);
-console.log('llemos - injected currentUser=', currentUser);
-
 
 function onLogin () {
   signInWithEmailAndPassword(firebaseAuth, email.value, password.value)
@@ -69,7 +66,6 @@ function onLogin () {
 }
 
 async function onLogout () {
-  console.log('llemos - currentUser.value.displayName=', currentUser.value);
   try {
     const user = currentUser.value.displayName;
     await signOut(firebaseAuth);

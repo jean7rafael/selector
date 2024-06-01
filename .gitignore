@@ -32,9 +32,6 @@ yarn-error.log*
 *.njsproj
 *.sln
 
-# Public
-/public
-
 # Firebase
 .firebase/
 *debug.log

@@ -27,14 +27,15 @@ import { ref, provide, onBeforeMount } from 'vue';
 import { getCurrentUser } from '../boot/firebase.js';
 
 const currentUser = ref(null);
+provide('currentUser', currentUser);
 
-onBeforeMount(/*async*/ () => {
-    //currentUser.value = /*await*/ getCurrentUser();
-    getCurrentUser().then(user => {
-      currentUser.value = user
-      provide('currentUser', currentUser);
-      console.log('llemos - providing currentUser.value', currentUser.value);
-    });
+onBeforeMount(async () => {
+    try {
+      currentUser.value = await getCurrentUser();
+    }
+    catch (err) {
+      currentUser.value = null;
+    }
 });
 const leftDrawerOpen = ref(false);
 
