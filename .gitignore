@@ -32,8 +32,9 @@ yarn-error.log*
 *.njsproj
 *.sln
 
-# Public
-/public
-
-# Firebas
+# Firebase
 .firebase/
+*debug.log
+
+# Prevent saving environment variables
+.env

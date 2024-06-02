@@ -1,43 +1,20 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <q-layout view="hHh lpR fFf">
     <q-header elevated>
       <q-toolbar>
-        <!-- <q-btn
-          flat
-          dense
-          round
-          icon="menu"
-          aria-label="Menu"
-          @click="toggleLeftDrawer"
-        /> -->
 
-        <q-toolbar-title>
-          Seletor: Times Vôlei
-        </q-toolbar-title>
-
-        <div>Quasar v{{ $q.version }}</div>
+        <q-btn flat round dense icon="menu" class="q-mr-sm" @click="toggleLeftDrawer" />
+        <q-separator dark vertical inset />
+        <q-btn color="white" flat to="/">Volei Hub</q-btn>
+        <q-space />
+        <q-btn v-if="currentUser" color="white" icon-right="logout" flat to="login">Sair</q-btn>
+        <q-btn v-else color="white" icon-right="login" flat to="login">Entrar</q-btn>
       </q-toolbar>
     </q-header>
 
-    <!-- <q-drawer
-      v-model="leftDrawerOpen"
-      show-if-above
-      bordered
-    >
-      <q-list>
-        <q-item-label
-          header
-        >
-          Menu
-        </q-item-label>
-
-        <EssentialLink
-          v-for="link in essentialLinks"
-          :key="link.title"
-          v-bind="link"
-        />
-      </q-list>
-    </q-drawer> -->
+    <q-drawer v-model="leftDrawerOpen" side="left" behavior="normal" bordered>
+      <!-- drawer content -->
+    </q-drawer>
 
     <q-page-container>
       <router-view />
@@ -45,73 +22,25 @@
   </q-layout>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
-// import { ref } from 'vue';
-// import EssentialLink from 'components/EssentialLink.vue';
+<script setup lang="ts">
+import { ref, provide, onBeforeMount } from 'vue';
+import { getCurrentUser } from '../boot/firebase.js';
 
-// const linksList = [
-//   {
-//     title: 'Docs',
-//     caption: 'quasar.dev',
-//     icon: 'school',
-//     link: 'https://quasar.dev'
-//   },
-//   {
-//     title: 'Github',
-//     caption: 'github.com/quasarframework',
-//     icon: 'code',
-//     link: 'https://github.com/quasarframework'
-//   },
-//   {
-//     title: 'Discord Chat Channel',
-//     caption: 'chat.quasar.dev',
-//     icon: 'chat',
-//     link: 'https://chat.quasar.dev'
-//   },
-//   {
-//     title: 'Forum',
-//     caption: 'forum.quasar.dev',
-//     icon: 'record_voice_over',
-//     link: 'https://forum.quasar.dev'
-//   },
-//   {
-//     title: 'Twitter',
-//     caption: '@quasarframework',
-//     icon: 'rss_feed',
-//     link: 'https://twitter.quasar.dev'
-//   },
-//   {
-//     title: 'Facebook',
-//     caption: '@QuasarFramework',
-//     icon: 'public',
-//     link: 'https://facebook.quasar.dev'
-//   },
-//   {
-//     title: 'Quasar Awesome',
-//     caption: 'Community Quasar projects',
-//     icon: 'favorite',
-//     link: 'https://awesome.quasar.dev'
-//   }
-// ];
+const currentUser = ref(null);
+provide('currentUser', currentUser);
 
-export default defineComponent({
-   name: 'MainLayout',
-
-//   components: {
-//     EssentialLink
-//   },
-
-//   setup () {
-//     const leftDrawerOpen = ref(false)
-
-//     return {
-//       essentialLinks: linksList,
-//       leftDrawerOpen,
-//       toggleLeftDrawer () {
-//         leftDrawerOpen.value = !leftDrawerOpen.value
-//       }
-//     }
-//   }
+onBeforeMount(async () => {
+    try {
+      currentUser.value = await getCurrentUser();
+    }
+    catch (err) {
+      currentUser.value = null;
+    }
 });
+const leftDrawerOpen = ref(false);
+
+function toggleLeftDrawer () {
+  leftDrawerOpen.value = !leftDrawerOpen.value
+}
+
 </script>
