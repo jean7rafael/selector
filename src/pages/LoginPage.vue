@@ -49,9 +49,10 @@ const password = ref(null);
 function onLogin () {
   signInWithEmailAndPassword(firebaseAuth, email.value, password.value)
     .then(userCredentials => {
+      const user = userCredentials.user.displayName ?? userCredentials.user.email;
       $q.notify({
         type: 'positive',
-        message: `Seja bem-vindo ${userCredentials.user.displayName}`
+        message: `Seja bem-vindo ${user}`
       })
       currentUser.value = userCredentials.user;
     })
@@ -67,7 +68,7 @@ function onLogin () {
 
 async function onLogout () {
   try {
-    const user = currentUser.value.displayName;
+    const user = currentUser.value.displayName ?? currentUser.value.email;
     await signOut(firebaseAuth);
     currentUser.value = null;
     $q.notify({
