@@ -1,41 +1,13 @@
-# Seletor-TimesVolei (selector)
+![GitHub CI](https://github.com/jean7rafael/selector/actions/workflows/firebase-hosting-merge.yml/badge.svg)
+# Volei Hub
+Projeto para ajudar a dividir times de vôlei antes das partidas
 
-Ajudar a dividir os times antes das partidas
+# Desenvolvimento
+São utilizadas as tecnologias abaixo:
+- [Firebase](https://firebase.google.com/): suite de ferramentas para deployment da aplicação 
+  - Authentication: controle de acesso
+  - Hosting: hospedar a SPA (single page application) que é gerada pelo processo de build
+  - Firestore: banco de dados
+- [Quasar](https://quasar.dev/): framework para desenvolvimento da UI
 
-## Install the dependencies
-```bash
-yarn
-# or
-npm install
-```
-
-### Start the app in development mode (hot-code reloading, error reporting, etc.)
-```bash
-quasar dev
-```
-
-
-### Lint the files
-```bash
-yarn lint
-# or
-npm run lint
-```
-
-
-### Format the files
-```bash
-yarn format
-# or
-npm run format
-```
-
-
-
-### Build the app for production
-```bash
-quasar build
-```
-
-### Customize the configuration
-See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js).
+Para mais informações sobre como ajustar seu ambiente para rodar a aplicação, [consulte nossa wiki](https://github.com/jean7rafael/selector/wiki/Desenvolvimento)
