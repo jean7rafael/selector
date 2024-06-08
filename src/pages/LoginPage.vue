@@ -12,6 +12,7 @@
           <q-input
             filled
             type="email"
+            autocomplete="email"
             v-model="email"
             label="Email"
             lazy-rules
@@ -21,10 +22,11 @@
           <q-input
             filled
             type="password"
+            autocomplete="current-password"
             v-model="password"
             label="Password"
             lazy-rules
-            :rules="val2 => val2 && val2.length >= 6 || 'Password needs to be at least 6 characters'"
+            :rules="[val2 => val2 && val2.length >= 6 || 'Password needs to be at least 6 characters']"
           />
 
           <div>
