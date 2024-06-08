@@ -71,8 +71,14 @@ const menuList: MenuList = [
   {
     icon: 'sports_volleyball',
     label: 'Jogos',
-    separator: false,
+    separator: true,
     link: 'em-construcao'
+  },
+  {
+    icon: 'settings',
+    label: 'Ajustes',
+    separator: false,
+    link: 'ajustes'
   }
 ];
 provide('currentUser', currentUser);
@@ -80,6 +86,7 @@ provide('currentUser', currentUser);
 onBeforeMount(async () => {
     try {
       currentUser.value = await getCurrentUser();
+      console.log('llemos: user=', JSON.stringify(currentUser.value, null, 2));
     }
     catch (err) {
       currentUser.value = null;

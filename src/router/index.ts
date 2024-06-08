@@ -6,6 +6,7 @@ import {
   createWebHistory,
 } from 'vue-router';
 import routes from './routes';
+import { hasAuthenticatedUser } from '../misc/auth';
 
 /*
  * If not building with SSR mode, you can
@@ -21,7 +22,7 @@ export default route(function (/* { store, ssrContext } */) {
     ? createMemoryHistory
     : (process.env.VUE_ROUTER_MODE === 'history' ? createWebHistory : createWebHashHistory);
 
-  const Router = createRouter({
+  const router = createRouter({
     scrollBehavior: () => ({ left: 0, top: 0 }),
     routes,
 
@@ -33,5 +34,14 @@ export default route(function (/* { store, ssrContext } */) {
     ),
   });
 
-  return Router;
+  router.beforeEach(async (to) => {
+    const hasAuthUser = await hasAuthenticatedUser();
+    if (to.meta.requiresAuth && !hasAuthUser) {
+      // this route requires auth, check if logged in
+      // if not, redirect to login page.
+      return '/login';
+    }
+  });
+
+  return router;
 });

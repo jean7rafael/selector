@@ -8,6 +8,9 @@ const routes: RouteRecordRaw[] = [
       {path: '', component: () => import('pages/IndexPage.vue')},
       {path: 'login', component: () => import('pages/LoginPage.vue')},
       {path: 'atletas', component: () => import('pages/AthletesPage.vue')},
+      {path: 'ajustes', component: () => import('pages/SettingsPage.vue'),
+        meta: { requiresAuth: true }
+      },
       {path: 'em-construcao', component: () => import('pages/NotImplementedYet.vue')},
     ],
   },
