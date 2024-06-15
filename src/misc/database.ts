@@ -1,5 +1,5 @@
 import { db } from '../boot/firebase.js';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, where } from 'firebase/firestore';
 
 export interface Player {
   id: number;
@@ -23,6 +23,16 @@ export interface Player {
 export async function writePlayer(player: Player) {
   try {
     const docRef = await addDoc(collection(db, 'players'), player);
+    console.log('Document written with id = ', docRef.id); 
+  } catch (err) {
+    console.log('llemos: error saving to firestore=', err);
+  }
+}
+
+export async function updatePlayer(player: Player) {
+  try {
+    // TODO: Fix update statement below to update only the player with that specific id
+    // const docRef = await updateDoc(db, 'players', player.id, player);
     console.log('Document written with id = ', docRef.id); 
   } catch (err) {
     console.log('llemos: error saving to firestore=', err);
