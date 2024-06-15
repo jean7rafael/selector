@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -13,12 +14,14 @@ const firebaseConfig = {
 // Initialize Firebase
 const firebaseApp = initializeApp(firebaseConfig);
 const firebaseAuth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
 
 if (process.env.DEBUGGING) {
   // This will be stripped out unless running `quasar dev` or `quasar build --debug`
   // More info on: https://quasar.dev/quasar-cli-vite/handling-process-env#values-provided-by-quasar-cli
   connectAuthEmulator(firebaseAuth, 'http://127.0.0.1:9099');
-  console.log('Connected to local Firebase Auth Emulator');
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  console.log('Connected to local Firebase Auth && Firestore Emulators');
 }
 
 async function getCurrentUser() {
@@ -33,4 +36,4 @@ async function getCurrentUser() {
   });
 }
 
-export { firebaseApp, firebaseAuth, getCurrentUser };
+export { firebaseApp, firebaseAuth, getCurrentUser, db };

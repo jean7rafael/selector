@@ -209,22 +209,8 @@
 <script lang="ts">
 import { defineComponent, ref, Ref, watch, computed, inject } from 'vue';
 import { Notify } from 'quasar';
+import { type Player, writePlayer } from '../misc/database';
 
-interface Player {
-  id: number;
-  name: string;
-  position: string;
-  relevanciaBase: number;
-  relevanciaCalc: number;
-  gender: 'Homem' | 'Mulher';
-  selected: boolean;
-  order: number;
-  pass: number;
-  attack: number;
-  positioning: number;
-  block: number;
-  serve: number;
-}
 
 interface Column {
   name: string;
@@ -380,8 +366,8 @@ export default defineComponent({
       { deep: true }
     )
 
-    watch(players, () => {
-      savePlayers();
+    watch(players, async () => {
+      await savePlayers();
     }, { deep: true });
 
     function loadPlayers() {
@@ -401,7 +387,7 @@ export default defineComponent({
       }
     }
 
-    function savePlayers() {
+    async function savePlayers() {
       // Mapeia cada jogador para incluir relevanciaCalc na estrutura de dados
       const dataToSave = players.value.map(player => ({
         ...player,
@@ -409,9 +395,12 @@ export default defineComponent({
       }));
 
       localStorage.setItem('players', JSON.stringify(dataToSave));
+      /* console.log('llemos: about to call save to Firebase Datastore');
+      await writePlayers(dataToSave);
+      console.log('llemos: called save to Firebase Datastore'); */
     }
 
-    function addPlayer() {
+    async function addPlayer() {
       const newId = players.value.length > 0 ? Math.max(...players.value.map(p => p.id)) + 1 : 1;
       const newOrder = players.value.length + 1;
       const relevanciaCalc = Number(calculateTotalRelevance(newPlayer.value))
@@ -424,6 +413,7 @@ export default defineComponent({
       };
 
       players.value.push(playerToAdd);
+      await writePlayer(playerToAdd);
       Notify.create({
               color: 'primary',
               message: 'Jogador Adicionado com sucesso!',

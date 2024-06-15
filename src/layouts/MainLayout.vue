@@ -86,7 +86,7 @@ provide('currentUser', currentUser);
 onBeforeMount(async () => {
     try {
       currentUser.value = await getCurrentUser();
-      console.log('llemos: user=', JSON.stringify(currentUser.value, null, 2));
+      // console.log('llemos: user=', JSON.stringify(currentUser.value, null, 2));
     }
     catch (err) {
       currentUser.value = null;
