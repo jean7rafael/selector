@@ -1,6 +1,6 @@
 <template>
   <q-page class="row items-center justify-evenly">
-    <div class="actions">
+    <div v-if="currentUser" class="actions">
       <q-btn fab icon="download" label="Salvar Dados" color="accent" class="q-ma-md flex flex-center" style="width: 200px;" :disabled="players.length === 0" @click="saveDataToFile" />
       <q-file v-model="selectedFile" label="Selecione o Arquivo JSON" filled class="q-ma-md" @update:model-value="handleFileChange"/>
       <q-btn fab icon="upload" label="Carregar Dados" color="secondary" class="q-ma-md flex flex-center" style="width: 200px;" @click="loadDataFromFile" />
@@ -64,6 +64,7 @@
     </q-dialog>
     <div class="actions">
     <q-btn
+      v-if="currentUser"
       fab
       color="primary"
       class="q-ma-md flex flex-center"
@@ -206,7 +207,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, Ref, watch, computed } from 'vue';
+import { defineComponent, ref, Ref, watch, computed, inject } from 'vue';
 import { Notify } from 'quasar';
 
 interface Player {
@@ -243,6 +244,8 @@ interface ExcessOrDeficit {
 
 export default defineComponent({
   setup() {
+
+    const currentUser = inject('currentUser');
     const players: Ref<Player[]> = ref([]);
     const selectedPlayer = ref<Player | null>(null); 
     const teams = ref<{ players: Player[]; totalRelevance: number }[]>([]);
@@ -738,7 +741,7 @@ export default defineComponent({
       players, selectedPlayer, deleteSelectedPlayers, showAddPlayerModal, newPlayer, positions, editPlayerDialog, editingPlayer,
       addPlayer, editPlayer, updatePlayer, selectedPlayers, teamInfo, formTeams, teams, selectAll,
       toggleAll, balanceWomen, mainTeamFormationProcess, columns, filteredColumns, isDeleteDialogOpen, confirmDelete, promptDeletePlayer,
-      saveDataToFile, loadDataFromFile, selectedFile, handleFileChange
+      saveDataToFile, loadDataFromFile, selectedFile, handleFileChange, currentUser
     };
 
   }

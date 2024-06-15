@@ -22,5 +22,6 @@ export async function hasMinimumRole(role: Role) {
   if (!user) return false;
 
   // TODO: check for properties in an existing user to determine its role
+  return true;
 
 }
