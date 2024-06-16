@@ -209,7 +209,7 @@
 <script lang="ts">
 import { defineComponent, ref, Ref, watch, computed, inject } from 'vue';
 import { Notify } from 'quasar';
-import { type Player, writePlayer } from '../misc/database';
+import { type Player, writePlayer, updatePlayerOnFirestore } from '../misc/database';
 
 
 interface Column {
@@ -430,7 +430,7 @@ export default defineComponent({
       editPlayerDialog.value = true;
     }
 
-    function updatePlayer() {
+    async function updatePlayer() {
       const index = players.value.findIndex(p => p.id === editingPlayer.value.id);
       if (index !== -1) {
         players.value[index] = {
@@ -438,6 +438,7 @@ export default defineComponent({
           relevanciaCalc: Number(calculateTotalRelevance(editingPlayer.value))
         };
       }
+      await updatePlayerOnFirestore(editingPlayer.value);
       Notify.create({
               color: 'primary',
               message: 'Jogador Alterado com sucesso!',

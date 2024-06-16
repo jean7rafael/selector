@@ -1,5 +1,5 @@
 import { db } from '../boot/firebase.js';
-import { collection, addDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, where, query, getDocs } from 'firebase/firestore';
 
 export interface Player {
   id: number;
@@ -29,11 +29,21 @@ export async function writePlayer(player: Player) {
   }
 }
 
-export async function updatePlayer(player: Player) {
+export async function updatePlayerOnFirestore(player: Player) {
   try {
-    // TODO: Fix update statement below to update only the player with that specific id
-    // const docRef = await updateDoc(db, 'players', player.id, player);
-    console.log('Document written with id = ', docRef.id); 
+    // TODO: If we have the `documentId` we can do an `updateDoc()` right away
+    // It might be worth storing it on `Player interface`
+    const q = query(collection(db, 'players'), where('id', '==', player.id));
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.size > 1) {
+      return Promise.reject(`Ao atualizar jogador com id=${player.id}, encontrou-se mais de um jogador com este id no banco de dados. Parando atualização`);
+    }
+
+    querySnapshot.forEach(async doc => {
+      await updateDoc(doc.ref, {
+        ...player
+      });
+    });
   } catch (err) {
     console.log('llemos: error saving to firestore=', err);
   }
