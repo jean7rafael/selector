@@ -1,8 +1,8 @@
 import { db } from '../boot/firebase.js';
-import { collection, addDoc, updateDoc, where, query, getDocs } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, where, query, getDocs, writeBatch, doc } from 'firebase/firestore';
 
 export interface Player {
-  id: number;
+  id: string;
   name: string;
   position: string;
   relevanciaBase: number;
@@ -17,13 +17,17 @@ export interface Player {
   serve: number;
 }
 
+const collections = {
+  players: 'players'
+};
+
 /* export async function readPlayers() {
 } */
 
 export async function writePlayer(player: Player) {
   try {
-    const docRef = await addDoc(collection(db, 'players'), player);
-    console.log('Document written with id = ', docRef.id); 
+    const docRef = await addDoc(collection(db, collections.players), player);
+    return docRef.id;
   } catch (err) {
     console.log('llemos: error saving to firestore=', err);
   }
@@ -33,7 +37,7 @@ export async function updatePlayerOnFirestore(player: Player) {
   try {
     // TODO: If we have the `documentId` we can do an `updateDoc()` right away
     // It might be worth storing it on `Player interface`
-    const q = query(collection(db, 'players'), where('id', '==', player.id));
+    const q = query(collection(db, collections.players), where('id', '==', player.id));
     const querySnapshot = await getDocs(q);
     if (querySnapshot.size > 1) {
       return Promise.reject(`Ao atualizar jogador com id=${player.id}, encontrou-se mais de um jogador com este id no banco de dados. Parando atualização`);
@@ -49,11 +53,25 @@ export async function updatePlayerOnFirestore(player: Player) {
   }
 }
 
-export async function writePlayers(players: Array<Player>) {
+export async function overwritePlayers(players: Array<Player>) {
   try {
-    const docRef = await addDoc(collection(db, 'players'), players);
-    console.log('Document written with id = ', docRef.id); 
+    players.forEach(async player => {
+      await addDoc(collection(db, collections.players), player)
+    })
   } catch (err) {
-    console.log('llemos: error saving to firestore=', err);
+    console.log('llemos: error saving all players to firestore=', err);
   }
 }
+
+export async function readPlayers() {
+    const q = query(collection(db, collections.players));
+    const querySnapshot = await getDocs(q);
+    const players: Array<Player> = [];
+    querySnapshot.forEach(doc => {
+      const data = doc.data() as Player;
+      players.push({...data, id: doc.id});
+    });
+    return players;
+}
+
+

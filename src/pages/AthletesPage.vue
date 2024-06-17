@@ -209,7 +209,7 @@
 <script lang="ts">
 import { defineComponent, ref, Ref, watch, computed, inject } from 'vue';
 import { Notify } from 'quasar';
-import { type Player, writePlayer, updatePlayerOnFirestore } from '../misc/database';
+import { type Player, writePlayer, updatePlayerOnFirestore, overwritePlayers, readPlayers } from '../misc/database';
 
 
 interface Column {
@@ -228,6 +228,22 @@ interface ExcessOrDeficit {
     womenCount: number;
 }
 
+const defaultPlayer: Player = {
+  id: 'manual-id', 
+  name: '', 
+  position: '', 
+  relevanciaBase: 0, 
+  relevanciaCalc: 0, 
+  gender: 'Homem', 
+  selected: false, 
+  order: 0, 
+  pass: 0, 
+  attack: 0, 
+  positioning: 0, 
+  block: 0, 
+  serve: 0
+};
+
 export default defineComponent({
   setup() {
 
@@ -236,9 +252,9 @@ export default defineComponent({
     const selectedPlayer = ref<Player | null>(null); 
     const teams = ref<{ players: Player[]; totalRelevance: number }[]>([]);
     const showAddPlayerModal = ref(false);
-    const newPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: 0, pass: 0, attack: 0, positioning: 0, block: 0, serve: 0 });
+    const newPlayer = ref<Player>({...defaultPlayer});
     const editPlayerDialog = ref(false);
-    const editingPlayer = ref<Player>({ id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: 0, pass: 0, attack: 0, positioning: 0, block: 0, serve: 0 });
+    const editingPlayer = ref<Player>({...defaultPlayer});
     const positions = ['Central', 'Levantador', 'Líbero', 'Oposto', 'Ponteiro', 'Indefinido'];
     
     const calculateTotalRelevance = (player: Player) => {
@@ -401,19 +417,26 @@ export default defineComponent({
     }
 
     async function addPlayer() {
-      const newId = players.value.length > 0 ? Math.max(...players.value.map(p => p.id)) + 1 : 1;
       const newOrder = players.value.length + 1;
       const relevanciaCalc = Number(calculateTotalRelevance(newPlayer.value))
 
       const playerToAdd: Player = {
         ...newPlayer.value,
-        id: newId,
         order: newOrder,
         relevanciaCalc
       };
 
-      players.value.push(playerToAdd);
-      await writePlayer(playerToAdd);
+      const id = await writePlayer(playerToAdd);
+      if (!id) {
+        Notify.create({
+                color: 'negative',
+                message: 'Erro ao criar novo jogador.',
+                icon: 'check',
+                timeout: 2000,
+              });
+      }
+      players.value.push({...playerToAdd, id});
+
       Notify.create({
               color: 'primary',
               message: 'Jogador Adicionado com sucesso!',
@@ -449,13 +472,13 @@ export default defineComponent({
     }
 
     function resetNewPlayer() {
-      newPlayer.value = { id: 0, name: '', position: '', relevanciaBase: 0, relevanciaCalc: 0, gender: 'Homem', selected: false, order: players.value.length + 1, pass: 0, attack: 0, positioning: 0, block: 0, serve: 0 };
+      newPlayer.value = {...defaultPlayer, order: players.value.length};
     }
 
     const isDeleteDialogOpen = ref(false);
  
     function confirmDelete() {
-      if (selectedPlayer.value && typeof selectedPlayer.value.id === 'number') {
+      if (selectedPlayer.value) {
         const selectedId = selectedPlayer.value.id;
         players.value = players.value.filter(p => p.id !== selectedId);
         Notify.create({
@@ -645,11 +668,18 @@ export default defineComponent({
     loadPlayers();
 
     // Função para salvar os dados de localStorage em um arquivo JSON
-    function saveDataToFile() {
+    async function saveDataToFile() {
        // Recupere os dados do localStorage
       const data = localStorage.getItem('players');
+      if (!data) return;
+
+      // Sobrescrever jogadores com os que estão na lista
+      console.log('llemos: vou chamar overwritePlayers');
+      await overwritePlayers(JSON.parse(data));
+      console.log('llemos: chamei overwritePlayers');
       if (data) {
         const blob = new Blob([data], { type: 'application/json' });
+        return;
         const href = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = href;
@@ -679,7 +709,9 @@ export default defineComponent({
       selectedFile.value = file;
     };
 
-    function loadDataFromFile() {
+    async function loadDataFromFile() {
+      const playersOnDb = await readPlayers();
+      console.log('llemos playersOnDb=', JSON.stringify(playersOnDb));
       const file = selectedFile.value;
       if (file && file.name.endsWith('.json')) {
         const reader = new FileReader();
