@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "banco-de-dados-seletor-times"
+    "default": "banco-de-dados-seletor-times",
+    "stage": "banco-de-dados-seletor-times",
+    "production": "volei-hub"
   }
 }

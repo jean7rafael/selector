@@ -2,8 +2,75 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+    // Funções centrais evitam repetir a mesma decisão de segurança.
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return role() == 'admin';
+    }
+
+    function isStaff() {
+      return role() in ['admin', 'director'];
+    }
+
+    function canRespondFor(userId) {
+      return signedIn() && (
+        request.auth.uid == userId
+        || isStaff()
+        || exists(/databases/$(database)/documents/delegations/$(userId)/delegates/$(request.auth.uid))
+      );
+    }
+
+    match /players/{playerId} {
+      // A lista serve à seleção pública; somente a equipe altera o cadastro.
+      allow read: if true;
+      allow create, update, delete: if isStaff();
+    }
+
+    match /users/{userId} {
+      // Usuários autenticados consultam o elenco para delegar presença.
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'member';
+      allow update: if isAdmin()
+        || (signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+
+      match /pushSubscriptions/{subscriptionId} {
+        // Cada aparelho gerencia somente os tokens de sua própria conta.
+        allow read, create, update, delete: if signedIn() && request.auth.uid == userId;
+      }
+    }
+
+    match /games/{gameId} {
+      // Agenda e placar são públicos; apenas a equipe cria ou altera jogos.
+      allow read: if true;
+      allow create, update, delete: if isStaff();
+
+      match /attendances/{userId} {
+        // O próprio usuário, a equipe ou um delegado explícito pode responder.
+        allow read: if true;
+        allow create, update: if request.resource.data.userId == userId && canRespondFor(userId);
+        allow delete: if canRespondFor(userId);
+      }
+    }
+
+    match /delegations/{fromUserId}/delegates/{toUserId} {
+      // A pessoa representada mantém controle sobre suas delegações.
+      allow read: if signedIn();
+      allow create, update, delete: if isStaff()
+        || (signedIn() && request.auth.uid == fromUserId);
     }
   }
 }

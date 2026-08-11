@@ -1,4 +1,5 @@
 <template>
+  <!-- Página de retorno para qualquer endereço não cadastrado. -->
   <div class="fullscreen bg-blue text-white text-center q-pa-md flex flex-center">
     <div>
       <div style="font-size: 30vh">
@@ -6,7 +7,7 @@
       </div>
 
       <div class="text-h2" style="opacity:.4">
-        Oops. Nothing here...
+        Esta página não existe.
       </div>
 
       <q-btn
@@ -15,7 +16,7 @@
         text-color="blue"
         unelevated
         to="/"
-        label="Go Home"
+        label="Voltar ao início"
         no-caps
       />
     </div>

@@ -1,117 +1,74 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <!-- Estrutura comum de cabeçalho, menu lateral e página atual. -->
+  <q-layout view="hHh lpR fFf">
     <q-header elevated>
       <q-toolbar>
-        <!-- <q-btn
-          flat
-          dense
-          round
-          icon="menu"
-          aria-label="Menu"
-          @click="toggleLeftDrawer"
-        /> -->
-
-        <q-toolbar-title>
-          Seletor: Times Vôlei
-        </q-toolbar-title>
-
-        <div>Quasar v{{ $q.version }}</div>
+        <q-btn flat round dense icon="menu" class="q-mr-sm" aria-label="Abrir menu" @click="drawer = !drawer" />
+        <q-separator dark vertical inset />
+        <q-btn color="white" flat to="/">Vôlei Hub</q-btn>
+        <q-space />
+        <span v-if="currentUser" class="text-caption q-mr-sm gt-xs">
+          {{ currentUser.email }} · {{ roleLabel }}
+        </span>
+        <q-btn v-if="currentUser" color="white" icon-right="logout" flat to="/login">Sair</q-btn>
+        <q-btn v-else color="white" icon-right="login" flat to="/login">Entrar</q-btn>
       </q-toolbar>
     </q-header>
 
-    <!-- <q-drawer
-      v-model="leftDrawerOpen"
+    <q-drawer
+      v-model="drawer"
       show-if-above
+      :width="220"
+      :breakpoint="500"
       bordered
+      :class="$q.dark.isActive ? 'bg-grey-9' : 'bg-grey-3'"
     >
-      <q-list>
-        <q-item-label
-          header
-        >
-          Menu
-        </q-item-label>
+      <q-scroll-area class="fit">
+        <q-list>
+          <template v-for="item in visibleMenu" :key="item.link">
+            <q-item v-ripple clickable :to="item.link" exact-active-class="text-primary">
+              <q-item-section avatar><q-icon :name="item.icon" /></q-item-section>
+              <q-item-section>{{ item.label }}</q-item-section>
+            </q-item>
+            <q-separator v-if="item.separator" />
+          </template>
+        </q-list>
+      </q-scroll-area>
+    </q-drawer>
 
-        <EssentialLink
-          v-for="link in essentialLinks"
-          :key="link.title"
-          v-bind="link"
-        />
-      </q-list>
-    </q-drawer> -->
-
-    <q-page-container>
-      <router-view />
-    </q-page-container>
+    <q-page-container><router-view /></q-page-container>
   </q-layout>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
-// import { ref } from 'vue';
-// import EssentialLink from 'components/EssentialLink.vue';
+<script setup lang="ts">
+import { computed, ref } from 'vue';
+import { canManagePlayers, currentRole, currentUser } from 'src/misc/auth';
 
-// const linksList = [
-//   {
-//     title: 'Docs',
-//     caption: 'quasar.dev',
-//     icon: 'school',
-//     link: 'https://quasar.dev'
-//   },
-//   {
-//     title: 'Github',
-//     caption: 'github.com/quasarframework',
-//     icon: 'code',
-//     link: 'https://github.com/quasarframework'
-//   },
-//   {
-//     title: 'Discord Chat Channel',
-//     caption: 'chat.quasar.dev',
-//     icon: 'chat',
-//     link: 'https://chat.quasar.dev'
-//   },
-//   {
-//     title: 'Forum',
-//     caption: 'forum.quasar.dev',
-//     icon: 'record_voice_over',
-//     link: 'https://forum.quasar.dev'
-//   },
-//   {
-//     title: 'Twitter',
-//     caption: '@quasarframework',
-//     icon: 'rss_feed',
-//     link: 'https://twitter.quasar.dev'
-//   },
-//   {
-//     title: 'Facebook',
-//     caption: '@QuasarFramework',
-//     icon: 'public',
-//     link: 'https://facebook.quasar.dev'
-//   },
-//   {
-//     title: 'Quasar Awesome',
-//     caption: 'Community Quasar projects',
-//     icon: 'favorite',
-//     link: 'https://awesome.quasar.dev'
-//   }
-// ];
+interface MenuItem {
+  icon: string;
+  label: string;
+  separator: boolean;
+  link: string;
+  staffOnly?: boolean;
+}
 
-export default defineComponent({
-   name: 'MainLayout',
+/* ===========================================================
+   NAVEGAÇÃO PRINCIPAL
 
-//   components: {
-//     EssentialLink
-//   },
+   Os itens vivem numa única lista para que desktop e celular
+   apresentem os mesmos destinos e divisores.
+=========================================================== */
 
-//   setup () {
-//     const leftDrawerOpen = ref(false)
+const drawer = ref(false);
+const menu: MenuItem[] = [
+  { icon: 'home', label: 'Início', separator: true, link: '/' },
+  { icon: 'people', label: 'Atletas', separator: false, link: '/atletas' },
+  { icon: 'sports_volleyball', label: 'Jogos e presença', separator: true, link: '/jogos' },
+  { icon: 'settings', label: 'Ajustes', separator: false, link: '/ajustes' },
+];
 
-//     return {
-//       essentialLinks: linksList,
-//       leftDrawerOpen,
-//       toggleLeftDrawer () {
-//         leftDrawerOpen.value = !leftDrawerOpen.value
-//       }
-//     }
-//   }
-});
+const visibleMenu = computed(() => menu.filter((item) => !item.staffOnly || canManagePlayers.value));
+
+/* Traduz o papel interno para uma identificação humana no cabeçalho. */
+const roleLabel = computed(() => ({ admin: 'Administrador', director: 'Diretoria', member: 'Membro' }[currentRole.value ?? 'member']));
 </script>

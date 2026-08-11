@@ -1,11 +1,8 @@
 <template>
+  <!-- Ponto de entrada das páginas definidas pelo Vue Router. -->
   <router-view />
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
-
-export default defineComponent({
-  name: 'App'
-})
+<script setup lang="ts">
+/* A raiz não mantém estado; cada domínio vive em seu próprio módulo. */
 </script>
