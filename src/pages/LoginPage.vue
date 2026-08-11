@@ -155,6 +155,13 @@ const passwordConfirmationRules = [
   (value: string) => value === password.value || 'As senhas não são iguais',
 ];
 
+/* Remove credenciais da memória da tela e volta o campo ao modo oculto. */
+function clearPasswordFields() {
+  password.value = '';
+  passwordConfirmation.value = '';
+  showPassword.value = false;
+}
+
 /* ===========================================================
    ENTRADA E SAÍDA
 
@@ -170,8 +177,7 @@ async function submit() {
     } else {
       await login();
     }
-    password.value = '';
-    passwordConfirmation.value = '';
+    clearPasswordFields();
   } catch (error) {
     $q.notify({ type: 'negative', message: authErrorMessage(error) });
   } finally {
@@ -268,6 +274,7 @@ async function logout() {
   loading.value = true;
   try {
     await signOut(firebaseAuth);
+    clearPasswordFields();
     $q.notify({ type: 'info', message: 'Sessão encerrada.' });
   } catch {
     $q.notify({
