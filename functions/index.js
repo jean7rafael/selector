@@ -11,6 +11,21 @@ initializeApp();
 const database = getFirestore();
 const messaging = getMessaging();
 
+/* O backend registra ações que não podem ser auditadas pelo navegador,
+   sem incluir senha, token ou qualquer outro valor secreto. */
+async function writeServerAudit(request, target, action, changedFields) {
+  await database.collection('auditLogs').add({
+    action,
+    actorEmail: request.auth?.token?.email ?? '',
+    actorUid: request.auth.uid,
+    changedFields,
+    createdAt: FieldValue.serverTimestamp(),
+    targetEmail: target.email ?? '',
+    targetName: target.displayName ?? target.email ?? 'Usuário',
+    targetUid: target.uid,
+  });
+}
+
 /* ===========================================================
    E-MAIL E SENHA ADMINISTRADOS COM SEGURANÇA
 
@@ -49,9 +64,27 @@ export const adminUpdateUserCredentials = onCall(async (request) => {
     );
   }
 
+  const previous = await getAuth().getUser(userId);
+  const changedFields = [
+    previous.email !== email ? 'email' : '',
+    previous.displayName !== displayName ? 'displayName' : '',
+    password ? 'password' : '',
+  ].filter(Boolean);
   const update = { email, displayName };
   if (password) update.password = password;
   await getAuth().updateUser(userId, update);
+  if (changedFields.length) {
+    await writeServerAudit(
+      request,
+      {
+        uid: userId,
+        email,
+        displayName,
+      },
+      'user.credentials',
+      changedFields,
+    );
+  }
   return { updated: true };
 });
 
@@ -88,6 +121,24 @@ export const adminDeleteUser = onCall(async (request) => {
     );
   }
 
+  const targetProfile = await database.doc(`users/${userId}`).get();
+  let targetAuth;
+  try {
+    targetAuth = await getAuth().getUser(userId);
+  } catch (error) {
+    if (error?.code !== 'auth/user-not-found') throw error;
+  }
+  const target = {
+    uid: userId,
+    email: targetAuth?.email ?? targetProfile.data()?.email ?? '',
+    displayName:
+      targetProfile.data()?.displayName ?? targetAuth?.displayName ?? 'Usuário',
+  };
+  const playerId =
+    typeof targetProfile.data()?.playerId === 'string'
+      ? targetProfile.data().playerId
+      : '';
+
   /* A credencial é removida primeiro. Se uma limpeza posterior falhar,
      repetir a operação continua seguro e conclui os documentos restantes. */
   try {
@@ -104,9 +155,14 @@ export const adminDeleteUser = onCall(async (request) => {
     database.recursiveDelete(database.doc(`users/${userId}`)),
     database.recursiveDelete(database.doc(`delegations/${userId}`)),
     database.doc(`userContacts/${userId}`).delete(),
+    playerId
+      ? database.doc(`playerLinks/${playerId}`).delete()
+      : Promise.resolve(),
     deleteQueryDocuments(incomingDelegations),
     deleteQueryDocuments(attendances),
   ]);
+
+  await writeServerAudit(request, target, 'user.delete', ['account']);
 
   return { deleted: true };
 });

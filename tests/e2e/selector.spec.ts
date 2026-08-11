@@ -55,9 +55,15 @@ test('administração edita perfil e função de outro usuário', async ({
   await page.getByLabel('Nome').fill('Membro atualizado');
   await page.getByLabel('Usuário').fill('membro-atualizado');
   await page.getByLabel('Telefone').fill('41999888770');
+  await page.getByLabel('Atleta vinculado').click();
+  await page.getByRole('option', { name: 'Ana', exact: true }).click();
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(
     page.getByText('Usuário atualizado.', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('Atleta: Ana', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Vínculo com atleta alterado', { exact: true }),
   ).toBeVisible();
 
   /* Alterna a função atual para que uma eventual repetição do GitHub
@@ -83,6 +89,15 @@ test('administração edita perfil e função de outro usuário', async ({
   ).toBeHidden({ timeout: 15_000 });
 });
 
+test('recuperação de senha confirma o envio sem revelar o cadastro', async ({
+  page,
+}) => {
+  await page.goto('/#/login');
+  await page.getByLabel('E-mail').fill('membro@selector.local');
+  await page.getByRole('button', { name: 'Esqueci minha senha' }).click();
+  await expect(page.getByText(/Se o e-mail estiver cadastrado/)).toBeVisible();
+});
+
 test('novo membro cria conta com e-mail, telefone e confirmação da senha', async ({
   page,
 }) => {
@@ -98,6 +113,9 @@ test('novo membro cria conta com e-mail, telefone e confirmação da senha', asy
 
   /* O cadastro entra automaticamente com o menor nível de permissão. */
   await expect(page.getByText(/Conta criada/)).toBeVisible();
+  await expect(
+    page.getByText('E-mail pendente', { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText(`${email} · Membro`, { exact: true }),
   ).toBeVisible();

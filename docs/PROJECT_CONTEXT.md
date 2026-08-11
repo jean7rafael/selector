@@ -15,7 +15,7 @@ O remoto local se chama `origin` e aponta para `https://github.com/jean7rafael/s
 ## Arquitetura
 
 - `src/domain`: regras puras de atleta e seleção de times;
-- `src/misc`: sessão, Firestore, jogos, delegações e notificações;
+- `src/misc`: sessão, Firestore, usuários, auditoria, jogos, delegações e notificações;
 - `src/pages`: telas Quasar;
 - `src-pwa`: manifesto, cache offline e service worker do FCM;
 - `functions`: notificações de novo jogo e lembretes;
@@ -31,8 +31,11 @@ O remoto local se chama `origin` e aponta para `https://github.com/jean7rafael/s
 - delegados respondem pelas pessoas que os autorizaram;
 - diretoria e administração gerenciam atletas, jogos e qualquer presença;
 - apenas administração consulta telefones, edita perfis, altera papéis e exclui usuários;
+- cada atleta pode ser vinculado a no máximo uma conta por um documento canônico;
+- ações administrativas sensíveis criam um histórico imutável sem valores de senha;
 - a própria conta administradora não pode ser rebaixada nem excluída;
 - senhas existentes nunca são recuperáveis; a administração apenas define uma nova senha.
+- usuários podem recuperar a senha e enviar ou reenviar a verificação do próprio e-mail.
 
 As decisões são repetidas em `firestore.rules`; ocultar um botão na interface nunca é tratado como segurança suficiente.
 
@@ -44,6 +47,7 @@ As decisões são repetidas em `firestore.rules`; ocultar um botão na interface
 - funções agendadas exigem Blaze;
 - Web Push exige `FIREBASE_VAPID_KEY`;
 - push nativo exige os arquivos de configuração Android/iOS e APNs configurado no Firebase.
+- a autenticação declara apenas persistência local e não carrega o resolvedor de pop-up/redirecionamento, que não é usado pelo login com e-mail e senha e bloqueava a primeira rota no iOS.
 
 ## Ferramentas no Mac
 
@@ -58,11 +62,11 @@ O `/usr/local/bin/node` continua sendo a versão antiga. Os comandos devem coloc
 
 - lint: aprovado;
 - 12 testes unitários: aprovados;
-- 10 testes de regras: aprovados;
-- 4 testes completos no Chromium: aprovados;
+- 12 testes de regras: aprovados;
+- 5 testes completos no Chromium: aprovados;
 - PWA: compilada;
 - Android: projeto, APK de release sem assinatura e APK de testes assinado gerados;
-- iOS: projeto sincronizado e dependências fixadas; o Xcode local informou CoreSimulator desatualizado, e a assinatura/publicação depende também das credenciais Apple;
+- iOS: Xcode, CoreSimulator e plataforma 26.5 configurados; pacotes Swift resolvidos e aplicativo validado no simulador;
 - notificações automáticas: implementadas, com deploy dependente do plano Blaze.
 
 ## Pendências externas
@@ -70,5 +74,5 @@ O `/usr/local/bin/node` continua sendo a versão antiga. Os comandos devem coloc
 1. adicionar/confirmar as chaves Web Push nos secrets do GitHub;
 2. habilitar Blaze para publicar Cloud Functions;
 3. fornecer conta/keystore Google Play para uma versão assinada;
-4. fornecer Apple Developer Team, certificados e perfil de provisionamento;
+4. fornecer Apple Developer Team, certificados e perfil de provisionamento para TestFlight/App Store;
 5. adicionar `google-services.json` e `GoogleService-Info.plist` para push nativo.

@@ -14,7 +14,29 @@
         <q-card-section>
           <div class="text-h6">Sua conta</div>
           <div>{{ currentUser?.displayName ?? currentUser?.email }}</div>
-          <q-badge color="primary" :label="roleLabel" />
+          <div class="row q-gutter-sm q-mt-sm">
+            <q-badge color="primary" :label="roleLabel" />
+            <q-badge
+              :color="emailVerified ? 'positive' : 'warning'"
+              :label="emailVerified ? 'E-mail verificado' : 'E-mail pendente'"
+            />
+          </div>
+          <div v-if="!emailVerified" class="row q-gutter-sm q-mt-md">
+            <q-btn
+              outline
+              color="primary"
+              label="Enviar verificação"
+              :loading="verificationLoading"
+              @click="sendVerificationEmail"
+            />
+            <q-btn
+              flat
+              color="primary"
+              label="Já verifiquei"
+              :loading="verificationLoading"
+              @click="refreshVerificationStatus"
+            />
+          </div>
         </q-card-section>
       </q-card>
 
@@ -37,6 +59,9 @@
               <q-item-label caption>{{
                 user.phone || 'Telefone não informado'
               }}</q-item-label>
+              <q-item-label caption
+                >Atleta: {{ user.playerName || 'Não vinculado' }}</q-item-label
+              >
             </q-item-section>
             <q-item-section side>
               <div class="row items-center no-wrap q-gutter-sm">
@@ -84,6 +109,45 @@
           <q-item v-else-if="!managedUsers.length">
             <q-item-section class="text-grey-6"
               >Nenhum usuário cadastrado.</q-item-section
+            >
+          </q-item>
+        </q-list>
+      </q-card>
+
+      <!-- A trilha é imutável e visível apenas para a administração. -->
+      <q-card v-if="currentRole === 'admin'" flat bordered>
+        <q-card-section>
+          <div class="text-h6">Histórico administrativo</div>
+          <p class="text-body2 text-grey-7">
+            Últimas alterações sensíveis, sem registrar senhas ou segredos.
+          </p>
+        </q-card-section>
+        <q-list separator>
+          <q-item v-for="entry in auditLogs" :key="entry.id">
+            <q-item-section>
+              <q-item-label>{{ auditActionLabel(entry.action) }}</q-item-label>
+              <q-item-label caption>
+                {{ entry.actorEmail }} →
+                {{ entry.targetName || entry.targetEmail }}
+              </q-item-label>
+              <q-item-label caption>
+                Campos: {{ entry.changedFields.join(', ') || 'conta' }}
+              </q-item-label>
+            </q-item-section>
+            <q-item-section side>
+              <q-item-label caption>{{
+                formatAuditDate(entry.createdAt)
+              }}</q-item-label>
+            </q-item-section>
+          </q-item>
+          <q-item v-if="loadingAuditLogs">
+            <q-item-section class="text-grey-6"
+              >Carregando histórico…</q-item-section
+            >
+          </q-item>
+          <q-item v-else-if="!auditLogs.length">
+            <q-item-section class="text-grey-6"
+              >Nenhuma ação administrativa registrada.</q-item-section
             >
           </q-item>
         </q-list>
@@ -211,6 +275,16 @@
               hint="Formato: (XX) XXX XXX XXX"
               :rules="phoneRules"
             />
+            <q-select
+              v-model="editingUser.playerId"
+              filled
+              clearable
+              emit-value
+              map-options
+              label="Atleta vinculado"
+              hint="Cada atleta pode pertencer a somente uma conta."
+              :options="playerOptions"
+            />
 
             <q-separator />
             <q-banner rounded class="bg-blue-1 text-primary">
@@ -266,7 +340,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { reload, sendEmailVerification } from 'firebase/auth';
 import { useQuasar } from 'quasar';
 import { currentRole, currentUser, type Role } from 'src/misc/auth';
 import {
@@ -281,11 +356,15 @@ import {
   enablePushNotifications,
 } from 'src/misc/notifications';
 import { isValidPhone, phoneMask } from 'src/domain/user-profile';
+import { readPlayers, type Player } from 'src/misc/database';
 import {
   deleteManagedUser,
+  listAuditLogs,
   listManagedUsers,
   updateManagedUserProfile,
   updateManagedUserRole,
+  type AuditAction,
+  type AuditLog,
   type ManagedUser,
 } from 'src/misc/users';
 
@@ -295,7 +374,10 @@ const delegates = ref<PresenceSubject[]>([]);
 const selectedDelegateId = ref('');
 const loadingUsers = ref(true);
 const managedUsers = ref<ManagedUser[]>([]);
+const players = ref<Player[]>([]);
+const auditLogs = ref<AuditLog[]>([]);
 const loadingManagedUsers = ref(false);
+const loadingAuditLogs = ref(false);
 const savingUserIds = ref<string[]>([]);
 const deletingUserIds = ref<string[]>([]);
 const userEditorOpen = ref(false);
@@ -304,6 +386,8 @@ const editingUser = ref<ManagedUser>({
   displayName: '',
   email: '',
   phone: '',
+  playerId: '',
+  playerName: '',
   role: 'member',
   username: '',
 });
@@ -311,6 +395,8 @@ const newPassword = ref('');
 const newPasswordConfirmation = ref('');
 const showNewPassword = ref(false);
 const savingUserProfile = ref(false);
+const verificationLoading = ref(false);
+const emailVerified = ref(Boolean(currentUser.value?.emailVerified));
 const pushLoading = ref(false);
 const pushEnabled = ref(
   Boolean(localStorage.getItem('selector-push-subscription')),
@@ -342,6 +428,18 @@ const delegateOptions = computed(() =>
 const selectedDelegate = computed(() =>
   users.value.find((user) => user.uid === selectedDelegateId.value),
 );
+const playerOptions = computed(() =>
+  players.value
+    .filter((player) => Boolean(player.id))
+    .map((player) => ({
+      label: player.name,
+      value: player.id,
+      disable: managedUsers.value.some(
+        (user) =>
+          user.uid !== editingUser.value.uid && user.playerId === player.id,
+      ),
+    })),
+);
 const roleOptions = [
   { label: 'Membro', value: 'member' },
   { label: 'Diretoria', value: 'director' },
@@ -364,6 +462,14 @@ const newPasswordConfirmationRules = [
   (value: string) => value === newPassword.value || 'As senhas não são iguais',
 ];
 
+watch(
+  currentUser,
+  (user) => {
+    emailVerified.value = Boolean(user?.emailVerified);
+  },
+  { immediate: true },
+);
+
 /* Carrega elenco e delegações em paralelo para reduzir a espera. */
 onMounted(async () => {
   if (!currentUser.value) return;
@@ -380,22 +486,102 @@ onMounted(async () => {
   } finally {
     loadingUsers.value = false;
   }
+});
 
-  /* Telefones e funções adicionais são buscados somente para administração. */
-  if (currentRole.value === 'admin') {
+/* A função pode chegar alguns instantes depois da sessão. Observar a mudança
+   evita que um administrador precise recarregar a página para ver o painel. */
+watch(
+  currentRole,
+  async (role) => {
+    if (role !== 'admin') return;
     loadingManagedUsers.value = true;
+    loadingAuditLogs.value = true;
     try {
-      managedUsers.value = await listManagedUsers();
+      [managedUsers.value, auditLogs.value, players.value] = await Promise.all([
+        listManagedUsers(),
+        listAuditLogs(),
+        readPlayers(),
+      ]);
     } catch {
       $q.notify({
         type: 'negative',
-        message: 'Não foi possível carregar os usuários.',
+        message: 'Não foi possível carregar a administração.',
       });
     } finally {
       loadingManagedUsers.value = false;
+      loadingAuditLogs.value = false;
     }
+  },
+  { immediate: true },
+);
+
+async function refreshAuditLogs() {
+  if (currentRole.value !== 'admin') return;
+  auditLogs.value = await listAuditLogs();
+}
+
+function auditActionLabel(action: AuditAction) {
+  return (
+    {
+      'user.credentials': 'Credenciais atualizadas',
+      'user.delete': 'Usuário excluído',
+      'user.playerLink': 'Vínculo com atleta alterado',
+      'user.profile': 'Perfil atualizado',
+      'user.role': 'Função alterada',
+    } satisfies Record<AuditAction, string>
+  )[action];
+}
+
+function formatAuditDate(date: Date | null) {
+  return date
+    ? new Intl.DateTimeFormat('pt-BR', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }).format(date)
+    : 'agora';
+}
+
+/* ===========================================================
+   VERIFICAÇÃO DO E-MAIL
+=========================================================== */
+
+async function sendVerificationEmail() {
+  if (!currentUser.value) return;
+  verificationLoading.value = true;
+  try {
+    await sendEmailVerification(currentUser.value);
+    $q.notify({ type: 'positive', message: 'E-mail de verificação enviado.' });
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Não foi possível enviar a verificação agora.',
+    });
+  } finally {
+    verificationLoading.value = false;
   }
-});
+}
+
+async function refreshVerificationStatus() {
+  if (!currentUser.value) return;
+  verificationLoading.value = true;
+  try {
+    await reload(currentUser.value);
+    emailVerified.value = currentUser.value.emailVerified;
+    $q.notify({
+      type: emailVerified.value ? 'positive' : 'info',
+      message: emailVerified.value
+        ? 'E-mail confirmado.'
+        : 'A confirmação ainda não chegou.',
+    });
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Não foi possível atualizar a verificação agora.',
+    });
+  } finally {
+    verificationLoading.value = false;
+  }
+}
 
 /* ===========================================================
    GESTÃO DE FUNÇÕES
@@ -408,8 +594,9 @@ async function saveUserRole(user: ManagedUser, role: Role) {
   if (user.uid === currentUser.value?.uid || user.role === role) return;
   savingUserIds.value.push(user.uid);
   try {
-    await updateManagedUserRole(user.uid, role);
+    await updateManagedUserRole(user, role);
     user.role = role;
+    await refreshAuditLogs();
     $q.notify({
       type: 'positive',
       message: 'Função atualizada. Ela valerá no próximo acesso da pessoa.',
@@ -441,6 +628,7 @@ async function saveUserProfile() {
   );
   if (!original || !isValidPhone(editingUser.value.phone)) return;
   if (newPassword.value !== newPasswordConfirmation.value) return;
+  editingUser.value.playerId = editingUser.value.playerId || '';
 
   savingUserProfile.value = true;
   try {
@@ -450,16 +638,23 @@ async function saveUserProfile() {
       newPassword.value,
     );
     Object.assign(original, editingUser.value);
+    original.playerName =
+      players.value.find((player) => player.id === original.playerId)?.name ??
+      '';
+    await refreshAuditLogs();
     userEditorOpen.value = false;
     $q.notify({ type: 'positive', message: 'Usuário atualizado.' });
-  } catch {
+  } catch (error) {
     const credentialChanged =
       original.email !== editingUser.value.email || Boolean(newPassword.value);
     $q.notify({
       type: 'negative',
-      message: credentialChanged
-        ? 'E-mail e senha exigem a função administrativa no plano Blaze.'
-        : 'Não foi possível atualizar o usuário.',
+      message:
+        error instanceof Error && error.message === 'PLAYER_ALREADY_LINKED'
+          ? 'Este atleta já está vinculado a outra conta.'
+          : credentialChanged
+            ? 'E-mail e senha exigem a função administrativa no plano Blaze.'
+            : 'Não foi possível atualizar o usuário.',
     });
   } finally {
     savingUserProfile.value = false;
@@ -481,6 +676,7 @@ async function deleteUserProfile(user: ManagedUser) {
     );
     users.value = users.value.filter((item) => item.uid !== user.uid);
     delegates.value = delegates.value.filter((item) => item.uid !== user.uid);
+    await refreshAuditLogs();
     $q.notify({ type: 'info', message: 'Usuário excluído.' });
   } catch {
     $q.notify({

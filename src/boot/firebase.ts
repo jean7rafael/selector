@@ -1,5 +1,11 @@
 import { initializeApp } from 'firebase/app';
-import { connectAuthEmulator, getAuth } from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  connectAuthEmulator,
+  indexedDBLocalPersistence,
+  initializeAuth,
+} from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 
@@ -22,7 +28,18 @@ const firebaseConfig = {
 };
 
 const firebaseApp = initializeApp(firebaseConfig);
-const firebaseAuth = getAuth(firebaseApp);
+
+/* O aplicativo usa e-mail e senha, sem login por pop-up ou redirecionamento.
+   Declarar somente as persistências evita que o Firebase carregue o resolvedor
+   Cordova no iOS, onde essa inicialização extra bloqueava a primeira rota. */
+const firebaseAuth = initializeAuth(firebaseApp, {
+  persistence: [
+    indexedDBLocalPersistence,
+    browserLocalPersistence,
+    browserSessionPersistence,
+  ],
+  popupRedirectResolver: undefined,
+});
 const db = getFirestore(firebaseApp);
 const cloudFunctions = getFunctions(firebaseApp);
 

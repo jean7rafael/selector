@@ -12,8 +12,11 @@ Aplicativo para cadastrar atletas, formar times equilibrados, agendar jogos e co
 
 - lista pública de atletas com alterações restritas à administração e diretoria;
 - criação de conta pelo aplicativo com e-mail, telefone privado e confirmação da senha;
+- recuperação de senha e envio/reenvio da verificação de e-mail;
 - nome de usuário derivado automaticamente da parte do e-mail anterior ao `@`;
 - painel administrativo para editar perfis, alterar funções e excluir contas;
+- vínculo exclusivo entre uma conta e um atleta do elenco;
+- histórico imutável das ações administrativas, sem senhas ou segredos;
 - troca segura de e-mail e senha pelo backend, sem possibilidade de revelar a senha atual;
 - formação de dois ou três times para grupos de 8 a 21 atletas;
 - equilíbrio opcional da quantidade de mulheres;
@@ -62,18 +65,21 @@ npm run build:pwa
 
 Os projetos ficam em `src-capacitor/android` e `src-capacitor/ios`.
 
+Antes de compilar localmente, copie `.env.example` para `.env`, preencha as variáveis com o aplicativo Web do Firebase e exporte-as no terminal (`set -a; source .env; set +a`). No GitHub, o workflow móvel recebe automaticamente as variáveis da homologação.
+
 ```bash
 export ANDROID_HOME="/opt/homebrew/share/android-commandlinetools"
 npm run build:android
 npm run build:android:apk
 
-export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 npm run build:ios
 ```
 
 `build:android:apk` gera um APK assinado com a chave de desenvolvimento, adequado para instalação e testes. Uma versão de loja precisa de uma chave permanente e conta Google Play. O iOS precisa de Apple Developer Team, certificados e perfis de provisionamento para produzir o `.ipa` e publicar na App Store.
 
-Neste Mac, o projeto iOS foi sincronizado e teve as dependências fixadas, mas o Xcode informou que o CoreSimulator instalado está uma revisão atrás da versão exigida. A atualização do Xcode/macOS deve ser concluída antes da validação local final do iOS.
+`build:ios` atualiza os arquivos web no projeto nativo e compila para o simulador. Para abrir o projeto e configurar a conta Apple, use `open src-capacitor/ios/App/App.xcodeproj`.
+
+Neste Mac, o Xcode completo, o CoreSimulator e a plataforma iOS 26.5 estão configurados. O pacote Swift foi resolvido e o Vôlei Hub foi compilado, instalado e aberto com sucesso no simulador. Assinatura, TestFlight e App Store continuam dependendo da conta Apple Developer.
 
 Para push nativo, coloque os arquivos fornecidos pelo Firebase em:
 

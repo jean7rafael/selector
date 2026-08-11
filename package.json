@@ -22,8 +22,10 @@
     "build:debug": "quasar build --debug",
     "build:pwa": "quasar build -m pwa",
     "build:android": "quasar build -m capacitor -T android",
-    "build:android:apk": "npm run build:android && cd src-capacitor/android && ./gradlew assembleDebug",
-    "build:ios": "quasar build -m capacitor -T ios"
+    "sync:android": "quasar build -m capacitor -T android --skip-pkg",
+    "build:android:apk": "npm run sync:android && cd src-capacitor/android && ./gradlew assembleDebug",
+    "sync:ios": "quasar build -m capacitor -T ios --skip-pkg",
+    "build:ios": "npm run sync:ios && xcodebuild -project src-capacitor/ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' -derivedDataPath dist/capacitor/ios-simulator build"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.0",

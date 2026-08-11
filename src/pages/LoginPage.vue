@@ -15,12 +15,38 @@
             Autenticado como <strong>{{ currentUser.email }}</strong
             >.
           </p>
-          <q-btn
-            label="Sair"
-            color="primary"
-            :loading="loading"
-            @click="logout"
+          <q-badge
+            :color="emailVerified ? 'positive' : 'warning'"
+            :label="emailVerified ? 'E-mail verificado' : 'E-mail pendente'"
           />
+          <p v-if="!emailVerified" class="q-mt-md text-body2 text-grey-7">
+            Verifique sua caixa de entrada para confirmar que este endereço é
+            seu.
+          </p>
+          <div class="row q-gutter-sm q-mt-md">
+            <q-btn
+              v-if="!emailVerified"
+              outline
+              color="primary"
+              label="Enviar verificação"
+              :loading="verificationLoading"
+              @click="sendVerificationEmail"
+            />
+            <q-btn
+              v-if="!emailVerified"
+              flat
+              color="primary"
+              label="Já verifiquei"
+              :loading="verificationLoading"
+              @click="refreshVerificationStatus"
+            />
+            <q-btn
+              label="Sair"
+              color="primary"
+              :loading="loading"
+              @click="logout"
+            />
+          </div>
         </q-card-section>
 
         <template v-else>
@@ -95,6 +121,14 @@
             </q-card-section>
             <q-card-actions align="right">
               <q-btn
+                v-if="mode === 'login'"
+                flat
+                no-caps
+                label="Esqueci minha senha"
+                :loading="resetLoading"
+                @click="requestPasswordReset"
+              />
+              <q-btn
                 :label="mode === 'register' ? 'Criar conta' : 'Entrar'"
                 type="submit"
                 color="primary"
@@ -109,11 +143,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import {
   createUserWithEmailAndPassword,
   deleteUser,
+  reload,
+  sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
@@ -136,6 +173,19 @@ const password = ref('');
 const passwordConfirmation = ref('');
 const showPassword = ref(false);
 const loading = ref(false);
+const resetLoading = ref(false);
+const verificationLoading = ref(false);
+const emailVerified = ref(false);
+
+/* O SDK atualiza o objeto User fora da reatividade profunda do Vue;
+   esta referência simples mantém o selo da tela sincronizado. */
+watch(
+  currentUser,
+  (user) => {
+    emailVerified.value = Boolean(user?.emailVerified);
+  },
+  { immediate: true },
+);
 
 /* As regras abaixo são mostradas no próprio campo antes de falar com o servidor. */
 const emailRules = [
@@ -192,6 +242,7 @@ async function login() {
     email.value.trim().toLowerCase(),
     password.value,
   );
+  emailVerified.value = credentials.user.emailVerified;
   $q.notify({
     type: 'positive',
     message: `Bem-vindo, ${credentials.user.displayName ?? credentials.user.email}.`,
@@ -246,10 +297,98 @@ async function register() {
     throw error;
   }
 
+  let verificationSent = true;
+  try {
+    await sendEmailVerification(credentials.user);
+  } catch {
+    verificationSent = false;
+  }
+  emailVerified.value = credentials.user.emailVerified;
   $q.notify({
     type: 'positive',
-    message: `Conta criada. Bem-vindo, ${displayName}.`,
+    message: verificationSent
+      ? `Conta criada. Enviamos a verificação para ${normalizedEmail}.`
+      : 'Conta criada. Use “Enviar verificação” para confirmar o e-mail.',
   });
+}
+
+/* A resposta é deliberadamente genérica para não revelar se um endereço
+   específico está ou não cadastrado no Firebase Authentication. */
+async function requestPasswordReset() {
+  const normalizedEmail = email.value.trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+    $q.notify({ type: 'negative', message: 'Informe um e-mail válido.' });
+    return;
+  }
+
+  resetLoading.value = true;
+  try {
+    await sendPasswordResetEmail(firebaseAuth, normalizedEmail);
+    $q.notify({
+      type: 'positive',
+      message:
+        'Se o e-mail estiver cadastrado, enviaremos as instruções de recuperação.',
+    });
+  } catch (error) {
+    if (
+      error instanceof FirebaseError &&
+      error.code === 'auth/user-not-found'
+    ) {
+      $q.notify({
+        type: 'positive',
+        message:
+          'Se o e-mail estiver cadastrado, enviaremos as instruções de recuperação.',
+      });
+    } else {
+      $q.notify({
+        type: 'negative',
+        message: 'Não foi possível solicitar a recuperação agora.',
+      });
+    }
+  } finally {
+    resetLoading.value = false;
+  }
+}
+
+async function sendVerificationEmail() {
+  if (!currentUser.value) return;
+  verificationLoading.value = true;
+  try {
+    await sendEmailVerification(currentUser.value);
+    $q.notify({
+      type: 'positive',
+      message: 'Novo e-mail de verificação enviado.',
+    });
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Não foi possível enviar a verificação agora.',
+    });
+  } finally {
+    verificationLoading.value = false;
+  }
+}
+
+async function refreshVerificationStatus() {
+  if (!currentUser.value) return;
+  verificationLoading.value = true;
+  try {
+    await reload(currentUser.value);
+    emailVerified.value = currentUser.value.emailVerified;
+    $q.notify({
+      type: emailVerified.value ? 'positive' : 'info',
+      message: emailVerified.value
+        ? 'E-mail confirmado.'
+        : 'A confirmação ainda não chegou. Abra o link enviado por e-mail.',
+    });
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Não foi possível atualizar a verificação agora.',
+    });
+  } finally {
+    verificationLoading.value = false;
+  }
 }
 
 /* Traduz os erros esperados sem expor detalhes internos do Firebase. */

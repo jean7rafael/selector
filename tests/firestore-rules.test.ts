@@ -55,6 +55,16 @@ beforeEach(async () => {
     await setDoc(doc(context.firestore(), 'games/sabado'), {
       title: 'Vôlei de sábado',
     });
+    await setDoc(doc(context.firestore(), 'auditLogs/existing'), {
+      action: 'user.role',
+      actorEmail: 'admin@example.com',
+      actorUid: 'admin',
+      changedFields: ['role'],
+      createdAt: new Date(),
+      targetEmail: 'member@example.com',
+      targetName: 'member',
+      targetUid: 'member',
+    });
     await setDoc(
       doc(context.firestore(), 'delegations/member/delegates/delegate'),
       {
@@ -148,6 +158,50 @@ describe('regras do Firestore', () => {
         role: 'admin',
         updatedAt: serverTimestamp(),
       }),
+    );
+  });
+
+  it('permite ao administrador vincular um atleta e registrar a auditoria no mesmo lote', async () => {
+    const admin = environment
+      .authenticatedContext('admin', { email: 'admin@example.com' })
+      .firestore();
+    const batch = writeBatch(admin);
+    batch.update(doc(admin, 'users/member'), {
+      playerId: 'ana',
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(doc(admin, 'playerLinks/ana'), {
+      createdAt: serverTimestamp(),
+      playerId: 'ana',
+      updatedAt: serverTimestamp(),
+      userId: 'member',
+    });
+    batch.set(doc(admin, 'auditLogs/link-ana'), {
+      action: 'user.playerLink',
+      actorEmail: 'admin@example.com',
+      actorUid: 'admin',
+      changedFields: ['playerId'],
+      createdAt: serverTimestamp(),
+      targetEmail: 'member@example.com',
+      targetName: 'member',
+      targetUid: 'member',
+    });
+    await assertSucceeds(batch.commit());
+  });
+
+  it('reserva vínculos e histórico somente para a administração', async () => {
+    const member = environment.authenticatedContext('member').firestore();
+    const admin = environment.authenticatedContext('admin').firestore();
+    await assertFails(
+      setDoc(doc(member, 'playerLinks/ana'), {
+        playerId: 'ana',
+        userId: 'member',
+      }),
+    );
+    await assertSucceeds(getDoc(doc(admin, 'auditLogs/existing')));
+    await assertFails(getDoc(doc(member, 'auditLogs/existing')));
+    await assertFails(
+      updateDoc(doc(admin, 'auditLogs/existing'), { targetName: 'alterado' }),
     );
   });
 
