@@ -6,16 +6,14 @@ import {
   createWebHistory,
 } from 'vue-router';
 import routes from './routes';
-import { hasAuthenticatedUser } from '../misc/auth';
+import { hasAuthenticatedUser, hasMinimumRole, type Role } from '../misc/auth';
 
-/*
- * If not building with SSR mode, you can
- * directly export the Router instantiation;
- *
- * The function below can be async too; either use
- * async/await or return a Promise which resolves
- * with the Router instance.
- */
+/* ===========================================================
+   CRIAÇÃO DO ROTEADOR
+
+   O histórico respeita o modo definido no Quasar. Hash funciona
+   igualmente no Firebase Hosting, PWA, Android e iOS.
+=========================================================== */
 
 export default route(function (/* { store, ssrContext } */) {
   const createHistory = process.env.SERVER
@@ -26,20 +24,25 @@ export default route(function (/* { store, ssrContext } */) {
     scrollBehavior: () => ({ left: 0, top: 0 }),
     routes,
 
-    // Leave this as is and make changes in quasar.conf.js instead!
-    // quasar.conf.js -> build -> vueRouterMode
-    // quasar.conf.js -> build -> publicPath
     history: createHistory(
       process.env.MODE === 'ssr' ? void 0 : process.env.VUE_ROUTER_BASE
     ),
   });
 
+  /* =========================================================
+     PROTEÇÃO DAS ROTAS
+
+     Primeiro confirmamos a sessão; depois comparamos o papel
+     mínimo. O Firestore repete a autorização no lado do servidor.
+  ========================================================= */
+
   router.beforeEach(async (to) => {
     const hasAuthUser = await hasAuthenticatedUser();
     if (to.meta.requiresAuth && !hasAuthUser) {
-      // this route requires auth, check if logged in
-      // if not, redirect to login page.
       return '/login';
+    }
+    if (to.meta.minimumRole && !(await hasMinimumRole(to.meta.minimumRole as Role))) {
+      return '/';
     }
   });
 

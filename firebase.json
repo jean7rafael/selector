@@ -4,12 +4,16 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
-    "public": "dist/spa",
+    "public": "dist/pwa",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ]
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs22"
   },
   "emulators": {
     "auth": {
@@ -20,6 +24,9 @@
     },
     "hosting": {
       "port": 5000
+    },
+    "functions": {
+      "port": 5001
     },
     "ui": {
       "enabled": true

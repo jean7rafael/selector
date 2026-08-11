@@ -1,0 +1,48 @@
+name: Publicar produção
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_functions:
+        description: Publicar também as funções push (requer Blaze)
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    # Produção é manual para separar a publicação pública da homologação.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm ci
+        working-directory: functions
+      - name: Compilar produção
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.PROD_FIREBASE_PROJECT_ID }}
+          FIREBASE_APP_ID: ${{ secrets.PROD_FIREBASE_APP_ID }}
+          FIREBASE_API_KEY: ${{ secrets.PROD_FIREBASE_API_KEY }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.PROD_FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.PROD_FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_VAPID_KEY: ${{ secrets.PROD_FIREBASE_VAPID_KEY }}
+        run: npm run build:pwa
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_VOLEI_HUB }}
+      - name: Publicar site, regras e índices
+        run: npx firebase deploy --project volei-hub --only hosting,firestore:rules,firestore:indexes
+      - name: Publicar notificações automáticas
+        if: ${{ inputs.include_functions }}
+        run: npx firebase deploy --project volei-hub --only functions
