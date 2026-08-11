@@ -31,7 +31,7 @@ service cloud.firestore {
 
     function validUserDocument() {
       return request.resource.data.keys().hasOnly([
-          'displayName', 'email', 'username', 'role', 'createdAt', 'updatedAt'
+          'displayName', 'email', 'username', 'playerId', 'role', 'createdAt', 'updatedAt'
         ])
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() > 0
@@ -39,6 +39,10 @@ service cloud.firestore {
         && request.resource.data.email.size() > 3
         && request.resource.data.username is string
         && request.resource.data.username.size() > 0
+        && (!request.resource.data.keys().hasAny(['playerId'])
+          || request.resource.data.playerId == null
+          || (request.resource.data.playerId is string
+            && request.resource.data.playerId.size() > 0))
         && request.resource.data.role in ['member', 'director', 'admin'];
     }
 
@@ -46,6 +50,40 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly(['phone', 'createdAt', 'updatedAt'])
         && request.resource.data.phone is string
         && request.resource.data.phone.matches('^[(][0-9]{2}[)] [0-9]{3} [0-9]{3} [0-9]{3}$');
+    }
+
+    function validPlayerLinkDocument(playerId) {
+      return request.resource.data.keys().hasOnly([
+          'createdAt', 'playerId', 'updatedAt', 'userId'
+        ])
+        && request.resource.data.playerId == playerId
+        && request.resource.data.userId is string
+        && request.resource.data.userId.size() > 0
+        && exists(/databases/$(database)/documents/players/$(playerId))
+        && exists(/databases/$(database)/documents/users/$(request.resource.data.userId));
+    }
+
+    function validAuditDocument() {
+      return request.resource.data.keys().hasOnly([
+          'action', 'actorEmail', 'actorUid', 'changedFields', 'createdAt',
+          'targetEmail', 'targetName', 'targetUid'
+        ])
+        && request.resource.data.action in [
+          'user.credentials', 'user.delete', 'user.playerLink',
+          'user.profile', 'user.role'
+        ]
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail is string
+        && request.resource.data.changedFields is list
+        && request.resource.data.changedFields.hasOnly([
+          'account', 'displayName', 'email', 'password', 'phone',
+          'playerId', 'role', 'username'
+        ])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.targetEmail is string
+        && request.resource.data.targetName is string
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid.size() > 0;
     }
 
     match /players/{playerId} {
@@ -84,6 +122,21 @@ service cloud.firestore {
       allow create, update: if validContactDocument()
         && (isAdmin() || (signedIn() && request.auth.uid == userId));
       allow delete: if isAdmin() || (signedIn() && request.auth.uid == userId);
+    }
+
+    match /playerLinks/{playerId} {
+      // O ID canônico reserva um atleta para no máximo uma conta.
+      allow read: if signedIn();
+      allow create: if isAdmin() && validPlayerLinkDocument(playerId);
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      // O histórico é somente leitura depois de criado e nunca recebe segredos.
+      allow read: if isAdmin();
+      allow create: if isAdmin() && validAuditDocument();
+      allow update, delete: if false;
     }
 
     match /games/{gameId} {

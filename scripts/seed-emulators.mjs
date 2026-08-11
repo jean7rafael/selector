@@ -32,6 +32,7 @@ const users = [
     email: 'admin@selector.local',
     password: 'selector123',
     displayName: 'Admin local',
+    emailVerified: true,
     username: 'admin',
     phone: '(41) 999 000 001',
     role: 'admin',
@@ -40,6 +41,7 @@ const users = [
     email: 'diretoria@selector.local',
     password: 'selector123',
     displayName: 'Diretoria local',
+    emailVerified: true,
     username: 'diretoria',
     phone: '(41) 999 000 002',
     role: 'director',
@@ -48,6 +50,7 @@ const users = [
     email: 'membro@selector.local',
     password: 'selector123',
     displayName: 'Membro local',
+    emailVerified: false,
     username: 'membro',
     phone: '(41) 999 000 003',
     role: 'member',
@@ -62,6 +65,7 @@ for (const seed of users) {
     await auth.updateUser(user.uid, {
       password: seed.password,
       displayName: seed.displayName,
+      emailVerified: seed.emailVerified,
     });
   } catch (error) {
     if (error.code !== 'auth/user-not-found') throw error;
