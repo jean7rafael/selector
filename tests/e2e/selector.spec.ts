@@ -101,4 +101,8 @@ test('novo membro cria conta com e-mail, telefone e confirmação da senha', asy
   await expect(
     page.getByText(`${email} · Membro`, { exact: true }),
   ).toBeVisible();
+
+  /* Encerrar a sessão devolve um formulário sem a senha anterior. */
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  await expect(page.getByLabel('Senha', { exact: true })).toHaveValue('');
 });
