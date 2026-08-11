@@ -21,18 +21,18 @@ const firstAuthState = new Promise<void>((resolve) => {
   resolveFirstAuthState = resolve;
 });
 
-/* A função aceita primeiro uma custom claim, ideal para produção,
-   e usa o documento users/{uid} como alternativa administrável. */
+/* O documento administrável é a fonte principal. Custom claims
+   antigas continuam aceitas apenas como compatibilidade. */
 async function readRole(user: User): Promise<Role> {
-  const token = await user.getIdTokenResult();
-  const claimedRole = token.claims.role;
-  if (claimedRole === 'admin' || claimedRole === 'director' || claimedRole === 'member') {
-    return claimedRole;
-  }
-
   const profile = await getDoc(doc(db, 'users', user.uid));
   const role = profile.data()?.role;
-  return role === 'admin' || role === 'director' ? role : 'member';
+  if (role === 'admin' || role === 'director' || role === 'member') return role;
+
+  const token = await user.getIdTokenResult();
+  const claimedRole = token.claims.role;
+  return claimedRole === 'admin' || claimedRole === 'director'
+    ? claimedRole
+    : 'member';
 }
 
 /* ===========================================================
@@ -61,7 +61,9 @@ export const currentUser = shallowReadonly(mutableCurrentUser);
 export const currentRole = readonly(mutableCurrentRole);
 export const authReady = readonly(mutableAuthReady);
 export const canManagePlayers = computed(
-  () => mutableCurrentRole.value === 'admin' || mutableCurrentRole.value === 'director',
+  () =>
+    mutableCurrentRole.value === 'admin' ||
+    mutableCurrentRole.value === 'director',
 );
 
 /* As proteções do roteador aguardam este ponto para não redirecionar

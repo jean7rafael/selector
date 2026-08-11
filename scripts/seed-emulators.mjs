@@ -9,8 +9,13 @@ process.env.GCLOUD_PROJECT ||= 'demo-selector';
    quando o destino não é explicitamente localhost.
 =========================================================== */
 
-if (!process.env.FIRESTORE_EMULATOR_HOST.startsWith('127.0.0.1') && !process.env.FIRESTORE_EMULATOR_HOST.startsWith('localhost')) {
-  throw new Error('A carga inicial só pode ser executada contra o emulador local.');
+if (
+  !process.env.FIRESTORE_EMULATOR_HOST.startsWith('127.0.0.1') &&
+  !process.env.FIRESTORE_EMULATOR_HOST.startsWith('localhost')
+) {
+  throw new Error(
+    'A carga inicial só pode ser executada contra o emulador local.',
+  );
 }
 
 const { initializeApp } = await import('firebase-admin/app');
@@ -23,9 +28,30 @@ const firestore = getFirestore(app);
 
 /* Contas previsíveis exercitam os três níveis de permissão. */
 const users = [
-  { email: 'admin@selector.local', password: 'selector123', displayName: 'Admin local', role: 'admin' },
-  { email: 'diretoria@selector.local', password: 'selector123', displayName: 'Diretoria local', role: 'director' },
-  { email: 'membro@selector.local', password: 'selector123', displayName: 'Membro local', role: 'member' },
+  {
+    email: 'admin@selector.local',
+    password: 'selector123',
+    displayName: 'Admin local',
+    username: 'admin',
+    phone: '(41) 999 000 001',
+    role: 'admin',
+  },
+  {
+    email: 'diretoria@selector.local',
+    password: 'selector123',
+    displayName: 'Diretoria local',
+    username: 'diretoria',
+    phone: '(41) 999 000 002',
+    role: 'director',
+  },
+  {
+    email: 'membro@selector.local',
+    password: 'selector123',
+    displayName: 'Membro local',
+    username: 'membro',
+    phone: '(41) 999 000 003',
+    role: 'member',
+  },
 ];
 
 /* Cria ou atualiza as contas sem acumular duplicatas entre execuções. */
@@ -33,18 +59,32 @@ for (const seed of users) {
   let user;
   try {
     user = await auth.getUserByEmail(seed.email);
-    await auth.updateUser(user.uid, { password: seed.password, displayName: seed.displayName });
+    await auth.updateUser(user.uid, {
+      password: seed.password,
+      displayName: seed.displayName,
+    });
   } catch (error) {
     if (error.code !== 'auth/user-not-found') throw error;
     user = await auth.createUser(seed);
   }
   await auth.setCustomUserClaims(user.uid, { role: seed.role });
-  await firestore.doc(`users/${user.uid}`).set({
-    email: seed.email,
-    displayName: seed.displayName,
-    role: seed.role,
-    updatedAt: Timestamp.now(),
-  }, { merge: true });
+  await firestore.doc(`users/${user.uid}`).set(
+    {
+      email: seed.email,
+      displayName: seed.displayName,
+      username: seed.username,
+      role: seed.role,
+      updatedAt: Timestamp.now(),
+    },
+    { merge: true },
+  );
+  await firestore.doc(`userContacts/${user.uid}`).set(
+    {
+      phone: seed.phone,
+      updatedAt: Timestamp.now(),
+    },
+    { merge: true },
+  );
 }
 
 /* O elenco pequeno permite formar dois times logo após iniciar o app. */

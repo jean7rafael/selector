@@ -42,7 +42,7 @@ export const emptyPlayer = (order = 0): Player => ({
   serve: 0,
 });
 
-/* Converte dados vindos de JSON ou Firestore sem propagar NaN. */
+/* Converte dados antigos ou vindos do Firestore sem propagar NaN. */
 const asNumber = (value: unknown, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -55,13 +55,27 @@ const asNumber = (value: unknown, fallback = 0) => {
    relevância base da posição do atleta.
 =========================================================== */
 
-export function calculatePlayerRelevance(player: Pick<Player, 'relevanciaBase' | 'pass' | 'attack' | 'positioning' | 'block' | 'serve'>) {
-  const skills = player.pass + player.attack + player.positioning + player.block + player.serve;
+export function calculatePlayerRelevance(
+  player: Pick<
+    Player,
+    'relevanciaBase' | 'pass' | 'attack' | 'positioning' | 'block' | 'serve'
+  >,
+) {
+  const skills =
+    player.pass +
+    player.attack +
+    player.positioning +
+    player.block +
+    player.serve;
   return Math.round(player.relevanciaBase * (1 + skills / 25));
 }
 
-/* Normaliza tanto documentos antigos quanto arquivos importados. */
-export function normalizePlayer(id: string, value: Partial<Player>, fallbackOrder = 0): Player {
+/* Normaliza tanto documentos antigos quanto registros atuais. */
+export function normalizePlayer(
+  id: string,
+  value: Partial<Player>,
+  fallbackOrder = 0,
+): Player {
   const player: Player = {
     ...emptyPlayer(fallbackOrder),
     ...value,

@@ -25,10 +25,14 @@ O remoto local se chama `origin` e aponta para `https://github.com/jean7rafael/s
 ## Permissões
 
 - visitantes leem atletas, jogos e presenças;
+- novas contas são criadas como membro e recebem o nome anterior ao `@` do e-mail;
+- telefone fica em documento separado, visível somente ao próprio usuário e à administração;
 - membros autenticados respondem por si e administram suas delegações;
 - delegados respondem pelas pessoas que os autorizaram;
 - diretoria e administração gerenciam atletas, jogos e qualquer presença;
-- apenas administração pode alterar papéis de usuários.
+- apenas administração consulta telefones, edita perfis, altera papéis e exclui usuários;
+- a própria conta administradora não pode ser rebaixada nem excluída;
+- senhas existentes nunca são recuperáveis; a administração apenas define uma nova senha.
 
 As decisões são repetidas em `firestore.rules`; ocultar um botão na interface nunca é tratado como segurança suficiente.
 
@@ -53,9 +57,9 @@ O `/usr/local/bin/node` continua sendo a versão antiga. Os comandos devem coloc
 ## Estado validado em 11 de agosto de 2026
 
 - lint: aprovado;
-- 10 testes unitários: aprovados;
-- 5 testes de regras: aprovados;
-- 2 testes completos no Chromium: aprovados;
+- 12 testes unitários: aprovados;
+- 10 testes de regras: aprovados;
+- 4 testes completos no Chromium: aprovados;
 - PWA: compilada;
 - Android: projeto, APK de release sem assinatura e APK de testes assinado gerados;
 - iOS: projeto sincronizado e dependências fixadas; o Xcode local informou CoreSimulator desatualizado, e a assinatura/publicação depende também das credenciais Apple;
