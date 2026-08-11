@@ -42,7 +42,8 @@ export async function writePlayer(player: Player): Promise<string> {
 /* Atualiza diretamente pelo document ID, evitando a antiga busca
    por um campo id que nem sempre existia no documento. */
 export async function updatePlayerOnFirestore(player: Player): Promise<void> {
-  if (!player.id) throw new Error('O atleta não possui um identificador do Firestore.');
+  if (!player.id)
+    throw new Error('O atleta não possui um identificador do Firestore.');
   await updateDoc(doc(db, 'players', player.id), {
     ...playerToDocument(player),
     updatedAt: serverTimestamp(),
@@ -50,33 +51,20 @@ export async function updatePlayerOnFirestore(player: Player): Promise<void> {
 }
 
 /* Exclusões individual e em lote compartilham a mesma coleção. */
-export async function deletePlayerFromFirestore(playerId: string): Promise<void> {
+export async function deletePlayerFromFirestore(
+  playerId: string,
+): Promise<void> {
   if (!playerId) return;
   await deleteDoc(doc(db, 'players', playerId));
 }
 
-export async function deletePlayersFromFirestore(playerIds: string[]): Promise<void> {
+export async function deletePlayersFromFirestore(
+  playerIds: string[],
+): Promise<void> {
   const batch = writeBatch(db);
-  playerIds.filter(Boolean).forEach((playerId) => batch.delete(doc(db, 'players', playerId)));
-  await batch.commit();
-}
-
-/* A importação é uma substituição atômica: ou o lote inteiro é
-   gravado, ou o cadastro anterior continua intacto. */
-export async function overwritePlayers(players: Player[]): Promise<void> {
-  const current = await getDocs(playersCollection);
-  const batch = writeBatch(db);
-  current.docs.forEach((snapshot) => batch.delete(snapshot.ref));
-
-  players.forEach((player, index) => {
-    const reference = doc(playersCollection);
-    const normalized = normalizePlayer(reference.id, player, index + 1);
-    batch.set(reference, {
-      ...playerToDocument(normalized),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  });
+  playerIds
+    .filter(Boolean)
+    .forEach((playerId) => batch.delete(doc(db, 'players', playerId)));
   await batch.commit();
 }
 
@@ -99,7 +87,11 @@ export function subscribeToPlayers(
     (snapshot) => {
       onPlayers(
         snapshot.docs.map((document, index) =>
-          normalizePlayer(document.id, document.data() as Partial<Player>, index + 1),
+          normalizePlayer(
+            document.id,
+            document.data() as Partial<Player>,
+            index + 1,
+          ),
         ),
       );
     },

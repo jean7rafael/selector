@@ -10,7 +10,11 @@ Aplicativo para cadastrar atletas, formar times equilibrados, agendar jogos e co
 
 ## O que já funciona
 
-- cadastro público de atletas com alterações restritas à administração e diretoria;
+- lista pública de atletas com alterações restritas à administração e diretoria;
+- criação de conta pelo aplicativo com e-mail, telefone privado e confirmação da senha;
+- nome de usuário derivado automaticamente da parte do e-mail anterior ao `@`;
+- painel administrativo para editar perfis, alterar funções e excluir contas;
+- troca segura de e-mail e senha pelo backend, sem possibilidade de revelar a senha atual;
 - formação de dois ou três times para grupos de 8 a 21 atletas;
 - equilíbrio opcional da quantidade de mulheres;
 - agenda pública e confirmação `vou`, `talvez` ou `não vou`;
@@ -83,6 +87,6 @@ Esses arquivos não devem ser versionados.
 - Pull requests recebem uma prévia temporária no Firebase Hosting.
 - Alterações em `main` publicam a homologação automaticamente.
 - O workflow manual `Publicar produção` usa o projeto `volei-hub`.
-- Funções de push e lembretes exigem que o projeto Firebase esteja no plano Blaze.
+- Funções de push, lembretes e administração de credenciais exigem que o projeto Firebase esteja no plano Blaze.
 
 As variáveis esperadas pelo GitHub estão listadas em `.env.example` e nos workflows de `.github/workflows`.
