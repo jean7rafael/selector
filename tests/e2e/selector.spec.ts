@@ -60,17 +60,27 @@ test('administração edita perfil e função de outro usuário', async ({
     page.getByText('Usuário atualizado.', { exact: true }),
   ).toBeVisible();
 
-  await page.getByLabel('Função de membro@selector.local').click();
-  await page.getByRole('option', { name: 'Administrador' }).click();
-  await expect(page.getByText(/Função atualizada/)).toBeVisible();
+  /* Alterna a função atual para que uma eventual repetição do GitHub
+     continue exercitando uma alteração real no mesmo emulador. */
+  const roleSelect = page.getByLabel('Função de membro@selector.local');
+  const currentRole = await roleSelect.inputValue();
+  const targetRole =
+    currentRole === 'Administrador' ? 'Diretoria' : 'Administrador';
+  await roleSelect.click();
+  await page.getByRole('option', { name: targetRole }).click();
+  await expect(page.getByText(/Função atualizada/)).toBeVisible({
+    timeout: 10_000,
+  });
 
   page.once('dialog', (dialog) => dialog.accept());
   await page
     .getByRole('button', { name: 'Excluir membro@selector.local' })
     .click();
+  /* A remoção da linha é um resultado persistente e confirma que a função
+     terminou; uma mensagem temporária poderia desaparecer em máquinas lentas. */
   await expect(
-    page.getByText('Usuário excluído.', { exact: true }),
-  ).toBeVisible();
+    page.getByRole('button', { name: 'Excluir membro@selector.local' }),
+  ).toBeHidden({ timeout: 15_000 });
 });
 
 test('novo membro cria conta com e-mail, telefone e confirmação da senha', async ({
