@@ -12,8 +12,8 @@ jobs:
     # A branch main representa a versão pública e estável do Vôlei Hub.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -33,7 +33,7 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BANCO_DE_DADOS_SELETOR_TIMES }}
           channelId: live
           projectId: banco-de-dados-seletor-times
-      - uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BANCO_DE_DADOS_SELETOR_TIMES }}
       - name: Publicar regras e índices
