@@ -7,6 +7,11 @@ import {
 } from 'firebase/messaging';
 import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db, firebaseApp } from 'src/boot/firebase';
+import {
+  isAppleMobilePlatform,
+  pushAvailabilityForContext,
+  type PushAvailability,
+} from 'src/domain/push-support';
 
 /* O token do FCM não é usado diretamente como document ID. Um hash
    estável evita caracteres problemáticos e ainda permite removê-lo. */
@@ -18,15 +23,42 @@ async function tokenDocumentId(token: string) {
   ).join('');
 }
 
-/* Confere APIs do navegador e o suporte declarado pelo SDK Firebase. */
-export async function pushAvailability() {
-  if (
-    typeof window === 'undefined' ||
-    !('Notification' in window) ||
-    !('serviceWorker' in navigator)
-  )
-    return false;
-  return isSupported();
+/* Confere primeiro a instalação no iOS/iPadOS, pois esses sistemas escondem
+   Notification e Push API enquanto o site está aberto em uma aba comum. */
+export async function pushAvailability(): Promise<PushAvailability> {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined')
+    return 'unsupported';
+
+  const isAppleMobile = isAppleMobilePlatform({
+    maxTouchPoints: navigator.maxTouchPoints,
+    platform: navigator.platform,
+    userAgent: navigator.userAgent,
+  });
+  const isStandalone =
+    window.matchMedia?.('(display-mode: standalone)').matches === true ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+  const hasNotificationApi = 'Notification' in window;
+  const hasServiceWorker = 'serviceWorker' in navigator;
+  let firebaseSupported = false;
+  if (hasNotificationApi && hasServiceWorker) {
+    try {
+      firebaseSupported = await isSupported();
+    } catch {
+      firebaseSupported = false;
+    }
+  }
+
+  return pushAvailabilityForContext({
+    firebaseSupported,
+    hasNotificationApi,
+    hasServiceWorker,
+    isAppleMobile,
+    isStandalone,
+    notificationPermission: hasNotificationApi
+      ? Notification.permission
+      : 'default',
+  });
 }
 
 /* Persiste somente o token Web Push. O identificador local permite que este
@@ -51,12 +83,21 @@ async function saveSubscription(user: User, token: string) {
 =========================================================== */
 
 export async function enablePushNotifications(user: User) {
-  if (!(await pushAvailability()))
-    throw new Error('Este navegador não oferece notificações push.');
+  const availability = await pushAvailability();
+  if (availability === 'install-required')
+    throw new Error(
+      'Adicione o Vôlei Hub à Tela de Início e abra pelo novo ícone antes de ativar notificações.',
+    );
+  if (availability === 'permission-denied')
+    throw new Error(
+      'As notificações estão bloqueadas nas configurações deste aparelho.',
+    );
+  if (availability === 'unsupported')
+    throw new Error(
+      'Este navegador ou aparelho não disponibiliza as APIs de notificações push.',
+    );
   if (!user.emailVerified)
     throw new Error('Confirme seu e-mail antes de ativar notificações.');
-  if (process.env.MODE !== 'pwa')
-    throw new Error('Instale ou abra a versão PWA para ativar notificações.');
   if (!process.env.FIREBASE_VAPID_KEY)
     throw new Error(
       'A chave pública de notificações ainda não foi configurada.',

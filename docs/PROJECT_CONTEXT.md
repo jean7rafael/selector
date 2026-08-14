@@ -60,18 +60,21 @@ mecanismo de segurança.
 
 - revisão de estilo: aprovada;
 - verificação de tipos: aprovada;
-- 12 testes unitários: aprovados;
+- 18 testes unitários: aprovados;
 - 15 testes de regras do Firestore: aprovados;
-- 5 fluxos completos no Chromium: aprovados;
+- 6 fluxos completos no Chromium: aprovados, incluindo a orientação de
+  instalação para Safari/Edge no iPhone;
 - PWA: compilada;
 - sintaxe da rotina de notificações: aprovada;
 - chave VAPID e API FCM V1: configuradas;
-- publicação real e entrega Web Push: aguardam validação após o merge.
+- rotina gratuita, publicação real e proteção da branch: validadas;
+- entrega Web Push em aparelho real: aguarda uma inscrição ativa.
 
 ## Pendências externas
 
-1. publicar a branch aprovada e validar o site real;
-2. executar manualmente a rotina de notificações e confirmar uma entrega real;
-3. configurar proteção da branch `main` depois de observar os nomes dos checks.
+1. instalar e abrir a PWA em um aparelho real, aceitar a permissão e confirmar
+   que a inscrição ficou ativa;
+2. criar um jogo de teste, executar a rotina e confirmar a notificação e o link
+   individual aberto pelo toque.
 
 Essas pendências só devem ser marcadas nas issues após a confirmação real.

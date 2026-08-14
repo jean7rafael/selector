@@ -193,12 +193,46 @@
       <q-card flat bordered>
         <q-card-section>
           <div class="text-h6">Notificações de jogos</div>
-          <p class="text-body2 text-grey-7">
-            No iPhone ou iPad, adicione o Vôlei Hub à Tela de Início antes de
-            permitir notificações.
+          <p v-if="pushStatus === 'available'" class="text-body2 text-grey-7">
+            Receba avisos de novos jogos e lembretes neste aparelho.
+          </p>
+          <q-banner
+            v-else-if="pushStatus === 'install-required'"
+            rounded
+            class="q-mb-md bg-orange-1 text-warning"
+          >
+            <div class="text-subtitle2">Instale antes de ativar</div>
+            <ol class="q-my-sm q-pl-lg">
+              <li>
+                No Safari ou Edge, toque em <strong>Compartilhar</strong>.
+              </li>
+              <li>Escolha <strong>Adicionar à Tela de Início</strong>.</li>
+              <li>Abra o Vôlei Hub pelo novo ícone.</li>
+              <li>Volte a Ajustes e ative as notificações.</li>
+            </ol>
+          </q-banner>
+          <q-banner
+            v-else-if="pushStatus === 'permission-denied'"
+            rounded
+            class="q-mb-md bg-orange-1 text-warning"
+          >
+            As notificações foram bloqueadas. Abra as configurações do navegador
+            ou do aparelho, permita notificações para o Vôlei Hub e volte a esta
+            tela.
+          </q-banner>
+          <q-banner
+            v-else-if="pushStatus === 'unsupported'"
+            rounded
+            class="q-mb-md bg-grey-2 text-grey-8"
+          >
+            Este navegador ou aparelho não disponibiliza todas as APIs de Web
+            Push. Confirme se ele está atualizado e tente novamente.
+          </q-banner>
+          <p v-else class="text-body2 text-grey-7">
+            Verificando as notificações disponíveis neste aparelho…
           </p>
           <q-btn
-            v-if="!pushEnabled"
+            v-if="!pushEnabled && pushStatus === 'available'"
             color="primary"
             icon="notifications_active"
             label="Ativar notificações"
@@ -207,7 +241,15 @@
             @click="enablePush"
           />
           <q-btn
-            v-else
+            v-else-if="!pushEnabled && pushStatus === 'checking'"
+            color="primary"
+            icon="notifications_active"
+            label="Verificando notificações"
+            loading
+            disable
+          />
+          <q-btn
+            v-else-if="pushEnabled"
             outline
             color="negative"
             icon="notifications_off"
@@ -374,7 +416,9 @@ import {
 import {
   disablePushNotifications,
   enablePushNotifications,
+  pushAvailability,
 } from 'src/misc/notifications';
+import type { PushAvailability } from 'src/domain/push-support';
 import { isValidPhone, phoneMask } from 'src/domain/user-profile';
 import { readPlayers, type Player } from 'src/misc/database';
 import {
@@ -421,6 +465,7 @@ const pushLoading = ref(false);
 const pushEnabled = ref(
   Boolean(localStorage.getItem('selector-push-subscription')),
 );
+const pushStatus = ref<PushAvailability | 'checking'>('checking');
 
 /* ===========================================================
    OPÇÕES DERIVADAS DA CONTA ATUAL
@@ -538,6 +583,15 @@ async function loadDelegationData() {
 
 onMounted(loadDelegationData);
 watch(canUseMemberFeatures, loadDelegationData);
+
+/* A orientação é recalculada ao abrir a tela e depois de uma tentativa. Isso
+   permite trocar imediatamente o botão por instruções quando a pessoa nega a
+   permissão ou quando abre a PWA no contexto correto do iPhone/iPad. */
+async function refreshPushStatus() {
+  pushStatus.value = await pushAvailability();
+}
+
+onMounted(refreshPushStatus);
 
 /* A função pode chegar alguns instantes depois da sessão. Observar a mudança
    evita que um administrador precise recarregar a página para ver o painel. */
@@ -834,6 +888,7 @@ async function enablePush() {
       message: 'Notificações ativadas neste aparelho.',
     });
   } catch (error) {
+    await refreshPushStatus();
     $q.notify({
       type: 'negative',
       message:
