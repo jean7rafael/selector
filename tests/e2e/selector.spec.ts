@@ -149,3 +149,41 @@ test('novo membro cria conta com e-mail, telefone e confirmação da senha', asy
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
   await expect(page.getByLabel('Senha', { exact: true })).toHaveValue('');
 });
+
+test('Safari ou Edge no iPhone orienta a instalação antes do Web Push', async ({
+  page,
+}) => {
+  /* O iPhone esconde Notification e Push API em abas comuns. A identificação
+     móvel deve prevalecer para mostrar os passos corretos de instalação. */
+  await page.addInitScript(() => {
+    Object.defineProperties(navigator, {
+      maxTouchPoints: { configurable: true, value: 5 },
+      platform: { configurable: true, value: 'iPhone' },
+      userAgent: {
+        configurable: true,
+        value: 'Mozilla/5.0 (iPhone) Mobile Safari/604.1 EdgiOS/138.0',
+      },
+    });
+  });
+
+  await page.goto('/#/login');
+  await page.getByLabel('E-mail').fill('admin@selector.local');
+  await page.getByLabel('Senha', { exact: true }).fill('selector123');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page.getByText(/Bem-vindo/)).toBeVisible();
+  await expect(
+    page.getByText(/admin@selector\.local · Administrador · Aprovado/),
+  ).toBeVisible();
+
+  await page.getByRole('link', { name: 'Ajustes', exact: true }).first().click();
+  await expect(page.getByText('Ajustes', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Instale antes de ativar', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Adicionar à Tela de Início', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Ativar notificações' }),
+  ).toHaveCount(0);
+});
