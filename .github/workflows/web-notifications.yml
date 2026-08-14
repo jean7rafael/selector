@@ -2,6 +2,12 @@ name: Notificações Web
 
 on:
   workflow_dispatch:
+    inputs:
+      send_test:
+        description: Enviar um teste apontando para o jogo mais próximo
+        required: true
+        default: false
+        type: boolean
   schedule:
     # O GitHub pode atrasar execuções agendadas; quinze minutos é o intervalo
     # nominal e substitui funções cobradas do Firebase.
@@ -26,4 +32,7 @@ jobs:
       - name: Enviar avisos de jogos
         env:
           FIREBASE_PROJECT_ID: banco-de-dados-seletor-times
+          # Execuções agendadas sempre usam false. O teste só ocorre quando uma
+          # pessoa marca explicitamente a opção na execução manual.
+          WEB_PUSH_TEST: ${{ inputs.send_test && 'true' || 'false' }}
         run: node scripts/send-web-notifications.mjs

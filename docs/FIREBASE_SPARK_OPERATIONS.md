@@ -45,7 +45,9 @@ GitHub:
 
 O intervalo nominal é de 15 minutos. Agendamentos do GitHub podem sofrer atraso
 ou ser suspensos; o mesmo workflow pode ser executado manualmente na aba
-**Actions**.
+**Actions**. Na execução manual, a opção **Enviar um teste** envia uma mensagem
+para as inscrições ativas apontando para o jogo mais próximo, sem criar nem
+alterar jogos.
 
 ## Secrets necessários
 
@@ -86,9 +88,9 @@ https://github.com/jean7rafael/selector/actions/runs/31848906895.
 3. publicar a PWA;
 4. entrar com conta verificada e aprovada;
 5. instalar a PWA e clicar em **Ativar notificações**;
-6. criar um jogo de teste;
-7. executar manualmente **Notificações Web**;
-8. confirmar a chegada e o endereço individual aberto pelo clique.
+6. abrir **Actions → Notificações Web → Run workflow**;
+7. marcar **Enviar um teste** e executar;
+8. confirmar a chegada e o endereço individual aberto pelo toque.
 
 Só depois dessa entrega real a pendência de Web Push deve receber check na
 issue.

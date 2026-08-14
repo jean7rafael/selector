@@ -67,6 +67,8 @@ async function activeSubscriptions() {
 
 async function sendNotification(subscriptions, notification, gameId, kind) {
   const link = `/#/jogos/${encodeURIComponent(gameId)}`;
+  let successCount = 0;
+  let failureCount = 0;
   for (let offset = 0; offset < subscriptions.length; offset += 500) {
     const batch = subscriptions.slice(offset, offset + 500);
     const result = await messaging.sendEachForMulticast({
@@ -82,6 +84,8 @@ async function sendNotification(subscriptions, notification, gameId, kind) {
       },
       webpush: { headers: { TTL: '86400', Urgency: 'high' } },
     });
+    successCount += result.successCount;
+    failureCount += result.failureCount;
 
     /* Tokens revogados são removidos para não consumir tentativas nas
        execuções seguintes. Outros erros permanecem para nova tentativa. */
@@ -100,65 +104,126 @@ async function sendNotification(subscriptions, notification, gameId, kind) {
     });
     if (hasInvalidTokens) await invalidWrites.commit();
   }
+  return { failureCount, successCount };
 }
 
-const subscriptions = await activeSubscriptions();
+/* O teste manual usa um jogo verdadeiro, preferindo o próximo da agenda. Isso
+   valida também o endereço individual sem criar um evento descartável. */
+async function testTargetGame() {
+  const now = Timestamp.now();
+  const upcoming = await database
+    .collection('games')
+    .where('startsAt', '>=', now)
+    .orderBy('startsAt', 'asc')
+    .limit(1)
+    .get();
+  if (!upcoming.empty) return upcoming.docs[0];
+
+  const latest = await database
+    .collection('games')
+    .orderBy('startsAt', 'desc')
+    .limit(1)
+    .get();
+  return latest.docs[0];
+}
+
+async function sendTestNotification(subscriptions) {
+  if (!subscriptions.length)
+    throw new Error('Nenhuma inscrição ativa está disponível para o teste.');
+  const game = await testTargetGame();
+  if (!game)
+    throw new Error('Cadastre ao menos um jogo antes de enviar o teste.');
+
+  const result = await sendNotification(
+    subscriptions,
+    {
+      title: 'Teste do Vôlei Hub',
+      body: `Notificações funcionando. Toque para abrir ${game.data().title ?? 'o jogo'}.`,
+    },
+    game.id,
+    'delivery-test',
+  );
+  if (!result.successCount)
+    throw new Error(
+      `O FCM recusou todas as ${result.failureCount} tentativas do teste.`,
+    );
+
+  console.log(
+    `Teste aceito pelo FCM: ${result.successCount} entregas, ${result.failureCount} falhas, jogo ${game.id}, ${subscriptions.length} inscrições ativas.`,
+  );
+}
 
 /* A rotina agendada substitui Cloud Functions no plano Spark. Novos jogos
    podem levar até o próximo ciclo do GitHub para gerar o aviso. */
-const newGames = await database
-  .collection('games')
-  .where('notificationSent', '==', false)
-  .limit(20)
-  .get();
-for (const game of newGames.docs) {
-  const startsAt = game.data().startsAt?.toDate?.();
-  const date = startsAt
-    ? new Intl.DateTimeFormat('pt-BR', {
-        dateStyle: 'short',
-        timeStyle: 'short',
-        timeZone: 'America/Sao_Paulo',
-      }).format(startsAt)
-    : 'em breve';
-  await sendNotification(
-    subscriptions,
-    {
-      title: 'Novo jogo no Vôlei Hub',
-      body: `${game.data().title ?? 'Vôlei'} · ${date}`,
-    },
-    game.id,
-    'new-game',
+async function processScheduledNotifications(subscriptions) {
+  /* Sem destinatários, os jogos permanecem pendentes para que uma inscrição
+     criada depois ainda receba o primeiro aviso. */
+  if (!subscriptions.length) {
+    console.log(
+      'Notificações processadas: 0 jogos novos, 0 lembretes, 0 inscrições ativas.',
+    );
+    return;
+  }
+
+  const newGames = await database
+    .collection('games')
+    .where('notificationSent', '==', false)
+    .limit(20)
+    .get();
+  for (const game of newGames.docs) {
+    const startsAt = game.data().startsAt?.toDate?.();
+    const date = startsAt
+      ? new Intl.DateTimeFormat('pt-BR', {
+          dateStyle: 'short',
+          timeStyle: 'short',
+          timeZone: 'America/Sao_Paulo',
+        }).format(startsAt)
+      : 'em breve';
+    await sendNotification(
+      subscriptions,
+      {
+        title: 'Novo jogo no Vôlei Hub',
+        body: `${game.data().title ?? 'Vôlei'} · ${date}`,
+      },
+      game.id,
+      'new-game',
+    );
+    await game.ref.update({
+      notificationSent: true,
+      notificationSentAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  const now = Timestamp.now();
+  const tomorrow = Timestamp.fromMillis(now.toMillis() + 24 * 60 * 60 * 1000);
+  const upcomingGames = await database
+    .collection('games')
+    .where('reminderSent', '==', false)
+    .where('startsAt', '>=', now)
+    .where('startsAt', '<=', tomorrow)
+    .get();
+  for (const game of upcomingGames.docs) {
+    await sendNotification(
+      subscriptions,
+      {
+        title: 'Vôlei nas próximas 24 horas',
+        body: `Confirme sua presença em ${game.data().title ?? 'Vôlei'}.`,
+      },
+      game.id,
+      'game-reminder',
+    );
+    await game.ref.update({
+      reminderSent: true,
+      reminderSentAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  console.log(
+    `Notificações processadas: ${newGames.size} jogos novos, ${upcomingGames.size} lembretes, ${subscriptions.length} inscrições ativas.`,
   );
-  await game.ref.update({
-    notificationSent: true,
-    notificationSentAt: FieldValue.serverTimestamp(),
-  });
 }
 
-const now = Timestamp.now();
-const tomorrow = Timestamp.fromMillis(now.toMillis() + 24 * 60 * 60 * 1000);
-const upcomingGames = await database
-  .collection('games')
-  .where('reminderSent', '==', false)
-  .where('startsAt', '>=', now)
-  .where('startsAt', '<=', tomorrow)
-  .get();
-for (const game of upcomingGames.docs) {
-  await sendNotification(
-    subscriptions,
-    {
-      title: 'Vôlei nas próximas 24 horas',
-      body: `Confirme sua presença em ${game.data().title ?? 'Vôlei'}.`,
-    },
-    game.id,
-    'game-reminder',
-  );
-  await game.ref.update({
-    reminderSent: true,
-    reminderSentAt: FieldValue.serverTimestamp(),
-  });
-}
-
-console.log(
-  `Notificações processadas: ${newGames.size} jogos novos, ${upcomingGames.size} lembretes, ${subscriptions.length} inscrições ativas.`,
-);
+const subscriptions = await activeSubscriptions();
+if (process.env.WEB_PUSH_TEST === 'true')
+  await sendTestNotification(subscriptions);
+else await processScheduledNotifications(subscriptions);

@@ -7,7 +7,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "eslint --ext .js,.ts,.vue ./",
+    "lint": "eslint --ext .js,.mjs,.ts,.vue ./",
     "typecheck": "quasar prepare && vue-tsc --noEmit",
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "npm run test:unit",
