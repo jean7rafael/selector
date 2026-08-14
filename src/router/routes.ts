@@ -12,12 +12,16 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      {path: '', component: () => import('pages/IndexPage.vue')},
-      {path: 'login', component: () => import('pages/LoginPage.vue')},
-      {path: 'atletas', component: () => import('pages/AthletesPage.vue')},
-      {path: 'jogos', component: () => import('pages/GamesPage.vue')},
-      {path: 'ajustes', component: () => import('pages/SettingsPage.vue'),
-        meta: { requiresAuth: true, minimumRole: 'member' }
+      { path: '', component: () => import('pages/IndexPage.vue') },
+      { path: 'login', component: () => import('pages/LoginPage.vue') },
+      { path: 'atletas', component: () => import('pages/AthletesPage.vue') },
+      { path: 'jogos', component: () => import('pages/GamesPage.vue') },
+      /* Cada jogo possui uma URL própria para compartilhar sua chamada. */
+      { path: 'jogos/:gameId', component: () => import('pages/GamesPage.vue') },
+      {
+        path: 'ajustes',
+        component: () => import('pages/SettingsPage.vue'),
+        meta: { requiresAuth: true, minimumRole: 'member' },
       },
     ],
   },

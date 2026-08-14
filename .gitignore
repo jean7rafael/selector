@@ -6,16 +6,6 @@ node_modules
 .quasar
 /dist
 
-# Cordova related directories and files
-/src-cordova/node_modules
-/src-cordova/platforms
-/src-cordova/plugins
-/src-cordova/www
-
-# Capacitor related directories and files
-/src-capacitor/www
-/src-capacitor/node_modules
-
 # BEX related directories and files
 /src-bex/www
 /src-bex/js/core
@@ -38,11 +28,6 @@ coverage/
 # Firebase
 .firebase/
 *debug.log
-
-# Credenciais específicas dos aplicativos móveis. Cada desenvolvedor baixa
-# esses arquivos no Firebase, mas eles nunca devem entrar no histórico Git.
-google-services.json
-GoogleService-Info.plist
 
 # Prevent saving environment variables
 .env

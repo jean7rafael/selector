@@ -12,20 +12,22 @@ import { hasAuthenticatedUser, hasMinimumRole, type Role } from '../misc/auth';
    CRIAÇÃO DO ROTEADOR
 
    O histórico respeita o modo definido no Quasar. Hash funciona
-   igualmente no Firebase Hosting, PWA, Android e iOS.
+   igualmente no Firebase Hosting e na PWA instalada.
 =========================================================== */
 
 export default route(function (/* { store, ssrContext } */) {
   const createHistory = process.env.SERVER
     ? createMemoryHistory
-    : (process.env.VUE_ROUTER_MODE === 'history' ? createWebHistory : createWebHashHistory);
+    : process.env.VUE_ROUTER_MODE === 'history'
+      ? createWebHistory
+      : createWebHashHistory;
 
   const router = createRouter({
     scrollBehavior: () => ({ left: 0, top: 0 }),
     routes,
 
     history: createHistory(
-      process.env.MODE === 'ssr' ? void 0 : process.env.VUE_ROUTER_BASE
+      process.env.MODE === 'ssr' ? void 0 : process.env.VUE_ROUTER_BASE,
     ),
   });
 
@@ -41,7 +43,10 @@ export default route(function (/* { store, ssrContext } */) {
     if (to.meta.requiresAuth && !hasAuthUser) {
       return '/login';
     }
-    if (to.meta.minimumRole && !(await hasMinimumRole(to.meta.minimumRole as Role))) {
+    if (
+      to.meta.minimumRole &&
+      !(await hasMinimumRole(to.meta.minimumRole as Role))
+    ) {
       return '/';
     }
   });

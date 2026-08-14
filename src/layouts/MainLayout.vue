@@ -3,15 +3,32 @@
   <q-layout view="hHh lpR fFf">
     <q-header elevated>
       <q-toolbar>
-        <q-btn flat round dense icon="menu" class="q-mr-sm" aria-label="Abrir menu" @click="drawer = !drawer" />
+        <q-btn
+          flat
+          round
+          dense
+          icon="menu"
+          class="q-mr-sm"
+          aria-label="Abrir menu"
+          @click="drawer = !drawer"
+        />
         <q-separator dark vertical inset />
         <q-btn color="white" flat to="/">Vôlei Hub</q-btn>
         <q-space />
         <span v-if="currentUser" class="text-caption q-mr-sm gt-xs">
-          {{ currentUser.email }} · {{ roleLabel }}
+          {{ currentUser.email }} · {{ roleLabel }} · {{ statusLabel }}
         </span>
-        <q-btn v-if="currentUser" color="white" icon-right="logout" flat to="/login">Sair</q-btn>
-        <q-btn v-else color="white" icon-right="login" flat to="/login">Entrar</q-btn>
+        <q-btn
+          v-if="currentUser"
+          color="white"
+          icon-right="logout"
+          flat
+          to="/login"
+          >Sair</q-btn
+        >
+        <q-btn v-else color="white" icon-right="login" flat to="/login"
+          >Entrar</q-btn
+        >
       </q-toolbar>
     </q-header>
 
@@ -26,8 +43,15 @@
       <q-scroll-area class="fit">
         <q-list>
           <template v-for="item in visibleMenu" :key="item.link">
-            <q-item v-ripple clickable :to="item.link" exact-active-class="text-primary">
-              <q-item-section avatar><q-icon :name="item.icon" /></q-item-section>
+            <q-item
+              v-ripple
+              clickable
+              :to="item.link"
+              exact-active-class="text-primary"
+            >
+              <q-item-section avatar
+                ><q-icon :name="item.icon"
+              /></q-item-section>
               <q-item-section>{{ item.label }}</q-item-section>
             </q-item>
             <q-separator v-if="item.separator" />
@@ -42,7 +66,12 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { canManagePlayers, currentRole, currentUser } from 'src/misc/auth';
+import {
+  canManagePlayers,
+  currentAccountStatus,
+  currentRole,
+  currentUser,
+} from 'src/misc/auth';
 
 interface MenuItem {
   icon: string;
@@ -63,12 +92,31 @@ const drawer = ref(false);
 const menu: MenuItem[] = [
   { icon: 'home', label: 'Início', separator: true, link: '/' },
   { icon: 'people', label: 'Atletas', separator: false, link: '/atletas' },
-  { icon: 'sports_volleyball', label: 'Jogos e presença', separator: true, link: '/jogos' },
+  {
+    icon: 'sports_volleyball',
+    label: 'Jogos e presença',
+    separator: true,
+    link: '/jogos',
+  },
   { icon: 'settings', label: 'Ajustes', separator: false, link: '/ajustes' },
 ];
 
-const visibleMenu = computed(() => menu.filter((item) => !item.staffOnly || canManagePlayers.value));
+const visibleMenu = computed(() =>
+  menu.filter((item) => !item.staffOnly || canManagePlayers.value),
+);
 
 /* Traduz o papel interno para uma identificação humana no cabeçalho. */
-const roleLabel = computed(() => ({ admin: 'Administrador', director: 'Diretoria', member: 'Membro' }[currentRole.value ?? 'member']));
+const roleLabel = computed(
+  () =>
+    ({ admin: 'Administrador', director: 'Diretoria', member: 'Membro' })[
+      currentRole.value ?? 'member'
+    ],
+);
+const statusLabel = computed(() =>
+  currentAccountStatus.value === 'approved'
+    ? 'Aprovado'
+    : currentAccountStatus.value === 'rejected'
+      ? 'Não aprovado'
+      : 'Aguardando aprovação',
+);
 </script>

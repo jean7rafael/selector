@@ -1,0 +1,29 @@
+name: Notificações Web
+
+on:
+  workflow_dispatch:
+  schedule:
+    # O GitHub pode atrasar execuções agendadas; quinze minutos é o intervalo
+    # nominal e substitui funções cobradas do Firebase.
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BANCO_DE_DADOS_SELETOR_TIMES }}
+      - name: Enviar avisos de jogos
+        env:
+          FIREBASE_PROJECT_ID: banco-de-dados-seletor-times
+        run: node scripts/send-web-notifications.mjs

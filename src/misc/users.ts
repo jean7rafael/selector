@@ -9,9 +9,9 @@ import {
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { cloudFunctions, db, firebaseAuth } from 'src/boot/firebase';
-import type { Role } from 'src/misc/auth';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { db, firebaseAuth } from 'src/boot/firebase';
+import type { AccountStatus, Role } from 'src/misc/auth';
 
 export interface ManagedUser {
   uid: string;
@@ -21,6 +21,7 @@ export interface ManagedUser {
   playerId: string;
   playerName: string;
   role: Role;
+  status: AccountStatus;
   username: string;
 }
 
@@ -36,8 +37,10 @@ export type AuditAction =
   | 'user.credentials'
   | 'user.delete'
   | 'user.playerLink'
+  | 'user.passwordReset'
   | 'user.profile'
-  | 'user.role';
+  | 'user.role'
+  | 'user.status';
 
 export interface AuditLog {
   id: string;
@@ -82,6 +85,10 @@ export async function listManagedUsers(): Promise<ManagedUser[]> {
     const role =
       data.role === 'admin' || data.role === 'director' ? data.role : 'member';
     const playerId = typeof data.playerId === 'string' ? data.playerId : '';
+    const status: AccountStatus =
+      data.status === 'pending' || data.status === 'rejected'
+        ? data.status
+        : 'approved';
     return {
       uid: profile.id,
       displayName: String(data.displayName ?? data.email ?? 'Membro'),
@@ -90,6 +97,7 @@ export async function listManagedUsers(): Promise<ManagedUser[]> {
       playerId,
       playerName: playerNames.get(playerId) ?? '',
       role,
+      status,
       username: String(data.username ?? data.email?.split('@')[0] ?? ''),
     };
   });
@@ -158,21 +166,57 @@ export async function updateManagedUserRole(user: ManagedUser, role: Role) {
   await batch.commit();
 }
 
-/* E-mail e senha pertencem ao Authentication e exigem uma função
-   privilegiada; nenhum segredo administrativo fica no navegador. */
-async function updateAuthenticationCredentials(
-  user: ManagedUser,
-  draft: ManagedUserDraft,
-  newPassword: string,
+/* A lista de membros não contém e-mail nem telefone. Ela é criada somente
+   para contas aprovadas e alimenta delegações e respostas da diretoria. */
+function addDirectoryWrite(
+  batch: ReturnType<typeof writeBatch>,
+  user: Pick<ManagedUser, 'displayName' | 'playerId' | 'status' | 'uid'>,
 ) {
-  if (draft.email === user.email && !newPassword) return;
-  const callable = httpsCallable(cloudFunctions, 'adminUpdateUserCredentials');
-  await callable({
-    userId: user.uid,
-    displayName: draft.displayName,
-    email: draft.email,
-    password: newPassword || undefined,
+  const reference = doc(db, 'memberDirectory', user.uid);
+  if (user.status !== 'approved') {
+    batch.delete(reference);
+    return;
+  }
+  batch.set(
+    reference,
+    {
+      displayName: user.displayName,
+      playerId: user.playerId || null,
+      updatedAt: serverTimestamp(),
+      userId: user.uid,
+    },
+    { merge: true },
+  );
+}
+
+/* Preenche o diretório para contas antigas, que são consideradas aprovadas.
+   A operação é idempotente e pode rodar novamente sem duplicar documentos. */
+export async function synchronizeMemberDirectory(users: ManagedUser[]) {
+  if (!users.length) return;
+  for (let offset = 0; offset < users.length; offset += 400) {
+    const batch = writeBatch(db);
+    users
+      .slice(offset, offset + 400)
+      .forEach((user) => addDirectoryWrite(batch, user));
+    await batch.commit();
+  }
+}
+
+/* Aprovação e rejeição atualizam perfil, diretório e auditoria no mesmo lote. */
+export async function updateManagedUserStatus(
+  user: ManagedUser,
+  status: AccountStatus,
+) {
+  if (user.uid === firebaseAuth.currentUser?.uid || user.status === status)
+    return;
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'users', user.uid), {
+    status,
+    updatedAt: serverTimestamp(),
   });
+  addDirectoryWrite(batch, { ...user, status });
+  addAuditToBatch(batch, user, 'user.status', ['status']);
+  await batch.commit();
 }
 
 /* Verifica o documento canônico antes de reservar um atleta. O ID do
@@ -190,10 +234,11 @@ async function assertPlayerIsAvailable(user: ManagedUser, playerId: string) {
 export async function updateManagedUserProfile(
   user: ManagedUser,
   draft: ManagedUserDraft,
-  newPassword = '',
 ) {
+  /* No plano Spark o navegador não pode editar a credencial de outra conta.
+     O e-mail permanece somente leitura e a senha usa redefinição por e-mail. */
+  if (draft.email !== user.email) throw new Error('EMAIL_REQUIRES_BACKEND');
   await assertPlayerIsAvailable(user, draft.playerId);
-  await updateAuthenticationCredentials(user, draft, newPassword);
 
   const changedFields = [
     user.displayName !== draft.displayName ? 'displayName' : '',
@@ -209,6 +254,11 @@ export async function updateManagedUserProfile(
     playerId: draft.playerId || null,
     username: draft.username,
     updatedAt: serverTimestamp(),
+  });
+  addDirectoryWrite(batch, {
+    ...user,
+    displayName: draft.displayName,
+    playerId: draft.playerId,
   });
   batch.set(
     doc(db, 'userContacts', user.uid),
@@ -238,9 +288,11 @@ export async function updateManagedUserProfile(
   await batch.commit();
 }
 
-/* A exclusão completa fica no backend para remover também a conta
-   do Authentication e subcoleções que o navegador não pode listar. */
-export async function deleteManagedUser(userId: string) {
-  const callable = httpsCallable(cloudFunctions, 'adminDeleteUser');
-  await callable({ userId });
+/* O Firebase permite solicitar redefinição sem conhecer a senha atual.
+   A auditoria registra apenas o pedido, nunca o link ou uma senha. */
+export async function sendManagedUserPasswordReset(user: ManagedUser) {
+  await sendPasswordResetEmail(firebaseAuth, user.email);
+  const batch = writeBatch(db);
+  addAuditToBatch(batch, user, 'user.passwordReset', ['password']);
+  await batch.commit();
 }
