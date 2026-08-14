@@ -19,9 +19,28 @@
             :color="emailVerified ? 'positive' : 'warning'"
             :label="emailVerified ? 'E-mail verificado' : 'E-mail pendente'"
           />
+          <q-badge
+            class="q-ml-sm"
+            :color="accountStatusColor"
+            :label="accountStatusLabel"
+          />
           <p v-if="!emailVerified" class="q-mt-md text-body2 text-grey-7">
             Verifique sua caixa de entrada para confirmar que este endereço é
             seu.
+          </p>
+          <p
+            v-else-if="currentAccountStatus === 'pending'"
+            class="q-mt-md text-body2 text-grey-7"
+          >
+            Seu e-mail foi confirmado. A conta aguarda aprovação da
+            administração.
+          </p>
+          <p
+            v-else-if="currentAccountStatus === 'rejected'"
+            class="q-mt-md text-body2 text-negative"
+          >
+            A administração não aprovou esta conta. Procure a diretoria para
+            revisar o cadastro.
           </p>
           <div class="row q-gutter-sm q-mt-md">
             <q-btn
@@ -143,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import {
   createUserWithEmailAndPassword,
@@ -163,7 +182,11 @@ import {
   isValidPhone,
   phoneMask,
 } from 'src/domain/user-profile';
-import { currentUser } from 'src/misc/auth';
+import {
+  currentAccountStatus,
+  currentUser,
+  refreshCurrentAccess,
+} from 'src/misc/auth';
 
 const $q = useQuasar();
 const mode = ref<'login' | 'register'>('login');
@@ -176,6 +199,21 @@ const loading = ref(false);
 const resetLoading = ref(false);
 const verificationLoading = ref(false);
 const emailVerified = ref(false);
+const accountStatusLabel = computed(
+  () =>
+    ({
+      approved: 'Conta aprovada',
+      pending: 'Aguardando aprovação',
+      rejected: 'Conta não aprovada',
+    })[currentAccountStatus.value ?? 'pending'],
+);
+const accountStatusColor = computed(() =>
+  currentAccountStatus.value === 'approved'
+    ? 'positive'
+    : currentAccountStatus.value === 'rejected'
+      ? 'negative'
+      : 'warning',
+);
 
 /* O SDK atualiza o objeto User fora da reatividade profunda do Vue;
    esta referência simples mantém o selo da tela sincronizado. */
@@ -282,6 +320,7 @@ async function register() {
       email: normalizedEmail,
       username: displayName,
       role: 'member',
+      status: 'pending',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -374,6 +413,7 @@ async function refreshVerificationStatus() {
   verificationLoading.value = true;
   try {
     await reload(currentUser.value);
+    await refreshCurrentAccess();
     emailVerified.value = currentUser.value.emailVerified;
     $q.notify({
       type: emailVerified.value ? 'positive' : 'info',

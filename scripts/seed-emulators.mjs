@@ -36,6 +36,7 @@ const users = [
     username: 'admin',
     phone: '(41) 999 000 001',
     role: 'admin',
+    status: 'approved',
   },
   {
     email: 'diretoria@selector.local',
@@ -45,6 +46,7 @@ const users = [
     username: 'diretoria',
     phone: '(41) 999 000 002',
     role: 'director',
+    status: 'approved',
   },
   {
     email: 'membro@selector.local',
@@ -54,6 +56,17 @@ const users = [
     username: 'membro',
     phone: '(41) 999 000 003',
     role: 'member',
+    status: 'approved',
+  },
+  {
+    email: 'pendente@selector.local',
+    password: 'selector123',
+    displayName: 'Conta pendente',
+    emailVerified: true,
+    username: 'pendente',
+    phone: '(41) 999 000 004',
+    role: 'member',
+    status: 'pending',
   },
 ];
 
@@ -78,6 +91,7 @@ for (const seed of users) {
       displayName: seed.displayName,
       username: seed.username,
       role: seed.role,
+      status: seed.status,
       updatedAt: Timestamp.now(),
     },
     { merge: true },
@@ -89,6 +103,22 @@ for (const seed of users) {
     },
     { merge: true },
   );
+  /* O diretório interno não replica e-mail nem telefone. Ele contém apenas
+     contas aprovadas disponíveis para presença e delegação. */
+  const directoryReference = firestore.doc(`memberDirectory/${user.uid}`);
+  if (seed.status === 'approved') {
+    await directoryReference.set(
+      {
+        displayName: seed.displayName,
+        playerId: null,
+        userId: user.uid,
+        updatedAt: Timestamp.now(),
+      },
+      { merge: true },
+    );
+  } else {
+    await directoryReference.delete();
+  }
 }
 
 /* O elenco pequeno permite formar dois times logo após iniciar o app. */
@@ -130,5 +160,5 @@ playerSeeds.forEach(([id, name, position, gender, relevanciaBase], index) => {
 });
 await batch.commit();
 
-console.log('Emuladores carregados: 3 usuários, 12 atletas.');
+console.log('Emuladores carregados: 4 usuários, 12 atletas.');
 console.log('Admin local: admin@selector.local / selector123');

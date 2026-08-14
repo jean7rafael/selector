@@ -20,7 +20,19 @@
               :color="emailVerified ? 'positive' : 'warning'"
               :label="emailVerified ? 'E-mail verificado' : 'E-mail pendente'"
             />
+            <q-badge :color="accountStatusColor" :label="accountStatusLabel" />
           </div>
+          <div class="q-mt-sm text-body2">
+            Atleta vinculado: {{ currentPlayer?.name || 'Nenhum' }}
+          </div>
+          <q-banner
+            v-if="!canUseMemberFeatures"
+            rounded
+            class="q-mt-md bg-orange-1 text-warning"
+          >
+            Confirme o e-mail e aguarde a aprovação da administração para usar
+            presença, delegações e notificações.
+          </q-banner>
           <div v-if="!emailVerified" class="row q-gutter-sm q-mt-md">
             <q-btn
               outline
@@ -41,7 +53,7 @@
       </q-card>
 
       <!-- A administração centraliza funções sem expor telefones aos membros. -->
-      <q-card v-if="currentRole === 'admin'" flat bordered>
+      <q-card v-if="isCurrentAdmin" flat bordered>
         <q-card-section>
           <div class="text-h6">Usuários cadastrados</div>
           <p class="text-body2 text-grey-7">
@@ -62,6 +74,9 @@
               <q-item-label caption
                 >Atleta: {{ user.playerName || 'Não vinculado' }}</q-item-label
               >
+              <q-item-label caption
+                >Situação: {{ accountStatusText(user.status) }}</q-item-label
+              >
             </q-item-section>
             <q-item-section side>
               <div class="row items-center no-wrap q-gutter-sm">
@@ -75,12 +90,20 @@
                 <q-btn
                   round
                   flat
-                  icon="delete"
+                  icon="lock_reset"
+                  color="primary"
+                  :aria-label="`Enviar redefinição para ${user.email}`"
+                  @click="requestUserPasswordReset(user)"
+                />
+                <q-btn
+                  round
+                  flat
+                  icon="person_off"
                   color="negative"
-                  :aria-label="`Excluir ${user.email}`"
+                  :aria-label="`Desativar ${user.email}`"
                   :disable="user.uid === currentUser?.uid"
                   :loading="deletingUserIds.includes(user.uid)"
-                  @click="deleteUserProfile(user)"
+                  @click="deactivateUser(user)"
                 />
                 <q-select
                   class="role-select"
@@ -94,6 +117,19 @@
                   :disable="user.uid === currentUser?.uid"
                   :loading="savingUserIds.includes(user.uid)"
                   @update:model-value="(role) => saveUserRole(user, role)"
+                />
+                <q-select
+                  class="status-select"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  :label="`Situação de ${user.email}`"
+                  :model-value="user.status"
+                  :options="statusOptions"
+                  :disable="user.uid === currentUser?.uid"
+                  :loading="savingUserIds.includes(user.uid)"
+                  @update:model-value="(status) => saveUserStatus(user, status)"
                 />
               </div>
               <q-item-label v-if="user.uid === currentUser?.uid" caption
@@ -115,7 +151,7 @@
       </q-card>
 
       <!-- A trilha é imutável e visível apenas para a administração. -->
-      <q-card v-if="currentRole === 'admin'" flat bordered>
+      <q-card v-if="isCurrentAdmin" flat bordered>
         <q-card-section>
           <div class="text-h6">Histórico administrativo</div>
           <p class="text-body2 text-grey-7">
@@ -167,6 +203,7 @@
             icon="notifications_active"
             label="Ativar notificações"
             :loading="pushLoading"
+            :disable="!canUseMemberFeatures"
             @click="enablePush"
           />
           <q-btn
@@ -198,6 +235,7 @@
                 label="Escolher pessoa"
                 :options="delegateOptions"
                 :loading="loadingUsers"
+                :disable="!canUseMemberFeatures"
               />
             </div>
             <div class="col-auto">
@@ -213,8 +251,12 @@
         <q-list separator>
           <q-item v-for="delegate in delegates" :key="delegate.uid">
             <q-item-section>
-              <q-item-label>{{ delegate.displayName }}</q-item-label>
-              <q-item-label caption>{{ delegate.email }}</q-item-label>
+              <q-item-label>{{
+                delegate.playerName || delegate.displayName
+              }}</q-item-label>
+              <q-item-label v-if="delegate.playerName" caption>
+                Conta: {{ delegate.displayName }}
+              </q-item-label>
             </q-item-section>
             <q-item-section side>
               <q-btn
@@ -263,7 +305,8 @@
               filled
               type="email"
               label="E-mail"
-              hint="Alterar o e-mail exige a função administrativa publicada."
+              readonly
+              hint="No plano gratuito, o endereço é alterado pelo próprio titular ou manualmente no Firebase."
               :rules="emailRules"
             />
             <q-input
@@ -286,42 +329,10 @@
               :options="playerOptions"
             />
 
-            <q-separator />
             <q-banner rounded class="bg-blue-1 text-primary">
-              A senha atual não pode ser exibida. Digite uma nova senha somente
-              se quiser substituí-la.
+              Senhas nunca são exibidas. Use o botão de redefinição na lista
+              para enviar um link seguro ao e-mail da pessoa.
             </q-banner>
-            <q-input
-              v-model="newPassword"
-              filled
-              :type="showNewPassword ? 'text' : 'password'"
-              autocomplete="new-password"
-              label="Nova senha"
-              hint="Deixe vazio para manter a senha atual."
-              :rules="newPasswordRules"
-            >
-              <template #append>
-                <q-icon
-                  :name="showNewPassword ? 'visibility_off' : 'visibility'"
-                  class="cursor-pointer"
-                  :aria-label="
-                    showNewPassword
-                      ? 'Ocultar nova senha'
-                      : 'Mostrar nova senha'
-                  "
-                  @click="showNewPassword = !showNewPassword"
-                />
-              </template>
-            </q-input>
-            <q-input
-              v-if="newPassword"
-              v-model="newPasswordConfirmation"
-              filled
-              :type="showNewPassword ? 'text' : 'password'"
-              autocomplete="new-password"
-              label="Repita a nova senha"
-              :rules="newPasswordConfirmationRules"
-            />
           </q-card-section>
 
           <q-card-actions align="right">
@@ -343,7 +354,16 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { reload, sendEmailVerification } from 'firebase/auth';
 import { useQuasar } from 'quasar';
-import { currentRole, currentUser, type Role } from 'src/misc/auth';
+import {
+  canUseMemberFeatures,
+  currentAccountStatus,
+  currentPlayer,
+  currentRole,
+  currentUser,
+  refreshCurrentAccess,
+  type AccountStatus,
+  type Role,
+} from 'src/misc/auth';
 import {
   delegatePresence,
   listDelegates,
@@ -358,11 +378,13 @@ import {
 import { isValidPhone, phoneMask } from 'src/domain/user-profile';
 import { readPlayers, type Player } from 'src/misc/database';
 import {
-  deleteManagedUser,
   listAuditLogs,
   listManagedUsers,
+  sendManagedUserPasswordReset,
+  synchronizeMemberDirectory,
   updateManagedUserProfile,
   updateManagedUserRole,
+  updateManagedUserStatus,
   type AuditAction,
   type AuditLog,
   type ManagedUser,
@@ -389,11 +411,9 @@ const editingUser = ref<ManagedUser>({
   playerId: '',
   playerName: '',
   role: 'member',
+  status: 'pending',
   username: '',
 });
-const newPassword = ref('');
-const newPasswordConfirmation = ref('');
-const showNewPassword = ref(false);
 const savingUserProfile = ref(false);
 const verificationLoading = ref(false);
 const emailVerified = ref(Boolean(currentUser.value?.emailVerified));
@@ -412,6 +432,19 @@ const roleLabel = computed(
       currentRole.value ?? 'member'
     ],
 );
+const accountStatusLabel = computed(() =>
+  accountStatusText(currentAccountStatus.value ?? 'pending'),
+);
+const accountStatusColor = computed(() =>
+  currentAccountStatus.value === 'approved'
+    ? 'positive'
+    : currentAccountStatus.value === 'rejected'
+      ? 'negative'
+      : 'warning',
+);
+const isCurrentAdmin = computed(
+  () => currentRole.value === 'admin' && canUseMemberFeatures.value,
+);
 const availableUsers = computed(() =>
   users.value.filter(
     (user) =>
@@ -421,7 +454,9 @@ const availableUsers = computed(() =>
 );
 const delegateOptions = computed(() =>
   availableUsers.value.map((user) => ({
-    label: `${user.displayName} (${user.email})`,
+    label: user.playerName
+      ? `${user.playerName} (${user.displayName})`
+      : user.displayName,
     value: user.uid,
   })),
 );
@@ -445,21 +480,27 @@ const roleOptions = [
   { label: 'Diretoria', value: 'director' },
   { label: 'Administrador', value: 'admin' },
 ];
+const statusOptions = [
+  { label: 'Aguardando aprovação', value: 'pending' },
+  { label: 'Aprovada', value: 'approved' },
+  { label: 'Não aprovada', value: 'rejected' },
+];
+
+function accountStatusText(status: AccountStatus) {
+  return (
+    {
+      approved: 'Aprovada',
+      pending: 'Aguardando aprovação',
+      rejected: 'Não aprovada',
+    } satisfies Record<AccountStatus, string>
+  )[status];
+}
 const emailRules = [
   (value: string) => Boolean(value) || 'Informe o e-mail',
   (value: string) => /^\S+@\S+\.\S+$/.test(value) || 'Informe um e-mail válido',
 ];
 const phoneRules = [
   (value: string) => isValidPhone(value) || 'Use o formato (XX) XXX XXX XXX',
-];
-const newPasswordRules = [
-  (value: string) =>
-    !value ||
-    value.length >= 6 ||
-    'A nova senha precisa ter pelo menos 6 caracteres',
-];
-const newPasswordConfirmationRules = [
-  (value: string) => value === newPassword.value || 'As senhas não são iguais',
 ];
 
 watch(
@@ -470,9 +511,16 @@ watch(
   { immediate: true },
 );
 
-/* Carrega elenco e delegações em paralelo para reduzir a espera. */
-onMounted(async () => {
-  if (!currentUser.value) return;
+/* Contas pendentes não consultam o diretório interno. Depois da aprovação ou
+   confirmação do e-mail, a observação abaixo carrega os dados automaticamente. */
+async function loadDelegationData() {
+  if (!currentUser.value || !canUseMemberFeatures.value) {
+    users.value = [];
+    delegates.value = [];
+    loadingUsers.value = false;
+    return;
+  }
+  loadingUsers.value = true;
   try {
     [users.value, delegates.value] = await Promise.all([
       listUsers(),
@@ -486,14 +534,17 @@ onMounted(async () => {
   } finally {
     loadingUsers.value = false;
   }
-});
+}
+
+onMounted(loadDelegationData);
+watch(canUseMemberFeatures, loadDelegationData);
 
 /* A função pode chegar alguns instantes depois da sessão. Observar a mudança
    evita que um administrador precise recarregar a página para ver o painel. */
 watch(
-  currentRole,
-  async (role) => {
-    if (role !== 'admin') return;
+  isCurrentAdmin,
+  async (isAdmin) => {
+    if (!isAdmin) return;
     loadingManagedUsers.value = true;
     loadingAuditLogs.value = true;
     try {
@@ -502,6 +553,10 @@ watch(
         listAuditLogs(),
         readPlayers(),
       ]);
+      /* Perfis criados antes do fluxo de aprovação são migrados sem expor
+         e-mail ou telefone no diretório usado pelas delegações. */
+      await synchronizeMemberDirectory(managedUsers.value);
+      await loadDelegationData();
     } catch {
       $q.notify({
         type: 'negative',
@@ -516,7 +571,7 @@ watch(
 );
 
 async function refreshAuditLogs() {
-  if (currentRole.value !== 'admin') return;
+  if (!isCurrentAdmin.value) return;
   auditLogs.value = await listAuditLogs();
 }
 
@@ -526,8 +581,10 @@ function auditActionLabel(action: AuditAction) {
       'user.credentials': 'Credenciais atualizadas',
       'user.delete': 'Usuário excluído',
       'user.playerLink': 'Vínculo com atleta alterado',
+      'user.passwordReset': 'Redefinição de senha solicitada',
       'user.profile': 'Perfil atualizado',
       'user.role': 'Função alterada',
+      'user.status': 'Situação da conta alterada',
     } satisfies Record<AuditAction, string>
   )[action];
 }
@@ -566,6 +623,7 @@ async function refreshVerificationStatus() {
   verificationLoading.value = true;
   try {
     await reload(currentUser.value);
+    await refreshCurrentAccess();
     emailVerified.value = currentUser.value.emailVerified;
     $q.notify({
       type: emailVerified.value ? 'positive' : 'info',
@@ -613,12 +671,35 @@ async function saveUserRole(user: ManagedUser, role: Role) {
   }
 }
 
+async function saveUserStatus(user: ManagedUser, status: AccountStatus) {
+  if (user.uid === currentUser.value?.uid || user.status === status) return;
+  savingUserIds.value.push(user.uid);
+  try {
+    await updateManagedUserStatus(user, status);
+    user.status = status;
+    await Promise.all([refreshAuditLogs(), loadDelegationData()]);
+    $q.notify({
+      type: status === 'approved' ? 'positive' : 'info',
+      message:
+        status === 'approved'
+          ? 'Conta aprovada.'
+          : 'Situação da conta atualizada.',
+    });
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Não foi possível atualizar a situação da conta.',
+    });
+  } finally {
+    savingUserIds.value = savingUserIds.value.filter(
+      (userId) => userId !== user.uid,
+    );
+  }
+}
+
 /* Abre uma cópia para cancelar sem modificar a lista visível. */
 function openUserEditor(user: ManagedUser) {
   editingUser.value = { ...user };
-  newPassword.value = '';
-  newPasswordConfirmation.value = '';
-  showNewPassword.value = false;
   userEditorOpen.value = true;
 }
 
@@ -627,16 +708,11 @@ async function saveUserProfile() {
     (user) => user.uid === editingUser.value.uid,
   );
   if (!original || !isValidPhone(editingUser.value.phone)) return;
-  if (newPassword.value !== newPasswordConfirmation.value) return;
   editingUser.value.playerId = editingUser.value.playerId || '';
 
   savingUserProfile.value = true;
   try {
-    await updateManagedUserProfile(
-      original,
-      editingUser.value,
-      newPassword.value,
-    );
+    await updateManagedUserProfile(original, editingUser.value);
     Object.assign(original, editingUser.value);
     original.playerName =
       players.value.find((player) => player.id === original.playerId)?.name ??
@@ -645,15 +721,13 @@ async function saveUserProfile() {
     userEditorOpen.value = false;
     $q.notify({ type: 'positive', message: 'Usuário atualizado.' });
   } catch (error) {
-    const credentialChanged =
-      original.email !== editingUser.value.email || Boolean(newPassword.value);
     $q.notify({
       type: 'negative',
       message:
         error instanceof Error && error.message === 'PLAYER_ALREADY_LINKED'
           ? 'Este atleta já está vinculado a outra conta.'
-          : credentialChanged
-            ? 'E-mail e senha exigem a função administrativa no plano Blaze.'
+          : error instanceof Error && error.message === 'EMAIL_REQUIRES_BACKEND'
+            ? 'O e-mail deve ser alterado pelo próprio titular.'
             : 'Não foi possível atualizar o usuário.',
     });
   } finally {
@@ -661,33 +735,46 @@ async function saveUserProfile() {
   }
 }
 
-async function deleteUserProfile(user: ManagedUser) {
+async function deactivateUser(user: ManagedUser) {
   if (user.uid === currentUser.value?.uid) return;
   const confirmed = window.confirm(
-    `Excluir permanentemente ${user.displayName} (${user.email}) e todos os dados da conta?`,
+    `Desativar ${user.displayName} (${user.email})? A pessoa perderá acesso às funções do aplicativo.`,
   );
   if (!confirmed) return;
 
   deletingUserIds.value.push(user.uid);
   try {
-    await deleteManagedUser(user.uid);
-    managedUsers.value = managedUsers.value.filter(
-      (item) => item.uid !== user.uid,
-    );
+    await updateManagedUserStatus(user, 'rejected');
+    user.status = 'rejected';
     users.value = users.value.filter((item) => item.uid !== user.uid);
     delegates.value = delegates.value.filter((item) => item.uid !== user.uid);
     await refreshAuditLogs();
-    $q.notify({ type: 'info', message: 'Usuário excluído.' });
+    $q.notify({ type: 'info', message: 'Conta desativada.' });
   } catch {
     $q.notify({
       type: 'negative',
-      message:
-        'A exclusão segura exige a função administrativa no plano Blaze.',
+      message: 'Não foi possível desativar a conta.',
     });
   } finally {
     deletingUserIds.value = deletingUserIds.value.filter(
       (userId) => userId !== user.uid,
     );
+  }
+}
+
+async function requestUserPasswordReset(user: ManagedUser) {
+  try {
+    await sendManagedUserPasswordReset(user);
+    await refreshAuditLogs();
+    $q.notify({
+      type: 'positive',
+      message: `Enviamos a redefinição para ${user.email}.`,
+    });
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Não foi possível enviar a redefinição agora.',
+    });
   }
 }
 
@@ -699,9 +786,9 @@ async function addDelegate() {
   if (!currentUser.value || !selectedDelegate.value) return;
   const self: PresenceSubject = {
     uid: currentUser.value.uid,
-    displayName:
-      currentUser.value.displayName ?? currentUser.value.email ?? 'Membro',
-    email: currentUser.value.email ?? '',
+    displayName: currentUser.value.displayName ?? 'Membro',
+    playerId: currentPlayer.value?.id ?? '',
+    playerName: currentPlayer.value?.name ?? '',
   };
   try {
     await delegatePresence(self, selectedDelegate.value);
@@ -782,6 +869,9 @@ async function disablePush() {
 }
 .role-select {
   min-width: 170px;
+}
+.status-select {
+  min-width: 195px;
 }
 .user-editor-card {
   width: 520px;

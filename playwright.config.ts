@@ -15,7 +15,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command:
-      'npx firebase emulators:exec --project demo-selector --only auth,firestore,functions "npm run seed:emulators && npm run dev -- --host 127.0.0.1"',
+      'npx firebase emulators:exec --project demo-selector --only auth,firestore "npm run seed:emulators && npm run dev -- --host 127.0.0.1"',
     url: 'http://127.0.0.1:3003',
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,

@@ -2,33 +2,45 @@
 
 [![Qualidade](https://github.com/jean7rafael/selector/actions/workflows/ci.yml/badge.svg)](https://github.com/jean7rafael/selector/actions/workflows/ci.yml)
 
-Aplicativo para cadastrar atletas, formar times equilibrados, agendar jogos e confirmar presença.
+Aplicativo Web instalável para cadastrar atletas, formar times equilibrados,
+agendar jogos e confirmar presença.
 
-- Web/PWA: [banco-de-dados-seletor-times.web.app](https://banco-de-dados-seletor-times.web.app/)
+- Aplicativo: [banco-de-dados-seletor-times.web.app](https://banco-de-dados-seletor-times.web.app/)
 - Código: [github.com/jean7rafael/selector](https://github.com/jean7rafael/selector)
 - Contexto técnico: [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)
+- Arquitetura PWA: [docs/PWA_ARCHITECTURE.md](docs/PWA_ARCHITECTURE.md)
+- Operação no Firebase: [docs/FIREBASE_SPARK_OPERATIONS.md](docs/FIREBASE_SPARK_OPERATIONS.md)
+- Modelo de dados: [docs/DATA_MODEL.md](docs/DATA_MODEL.md)
 
-## O que já funciona
+## O que funciona
 
-- lista pública de atletas com alterações restritas à administração e diretoria;
-- criação de conta pelo aplicativo com e-mail, telefone privado e confirmação da senha;
-- recuperação de senha e envio/reenvio da verificação de e-mail;
-- nome de usuário derivado automaticamente da parte do e-mail anterior ao `@`;
-- painel administrativo para editar perfis, alterar funções e excluir contas;
-- vínculo exclusivo entre uma conta e um atleta do elenco;
-- histórico imutável das ações administrativas, sem senhas ou segredos;
-- troca segura de e-mail e senha pelo backend, sem possibilidade de revelar a senha atual;
+- lista pública de atletas com alterações restritas à diretoria;
 - formação de dois ou três times para grupos de 8 a 21 atletas;
 - equilíbrio opcional da quantidade de mulheres;
-- agenda pública e confirmação `vou`, `talvez` ou `não vou`;
+- criação de conta com e-mail, telefone e repetição da senha;
+- verificação do e-mail e aprovação administrativa antes da participação;
+- nome de usuário iniciado com a parte do e-mail anterior ao `@`;
+- recuperação de senha por link seguro enviado ao titular;
+- painel administrativo para editar perfil, papel, situação e atleta vinculado;
+- desativação reversível de conta sem depender de um serviço pago;
+- vínculo exclusivo entre uma conta e um atleta;
+- histórico imutável das ações administrativas, sem senhas ou segredos;
+- agenda pública, URL própria para cada jogo e confirmação de presença;
 - delegação explícita para outra pessoa responder pela presença;
-- instalação como PWA, cache offline e notificações push;
-- projetos nativos Android e iOS com Capacitor;
+- instalação como PWA, cache offline e estrutura de Web Push;
 - testes unitários, regras do Firestore, navegador e automação no GitHub.
+
+## Decisão Web/PWA
+
+O produto não mantém mais projetos nativos separados para Android e iOS. O
+mesmo endereço Web pode ser instalado pela opção **Adicionar à Tela de Início**
+ou **Instalar aplicativo** do navegador. Essa decisão reduz manutenção sem
+retirar o uso em celular, tablet ou computador.
 
 ## Ambiente local
 
-O projeto usa Node 22.22+, Java 21 e, para Android, o SDK 36. Neste Mac eles foram instalados pelo Homebrew em `/opt/homebrew`.
+O projeto usa Node 22 e Java 21. Neste Mac, as versões corretas estão instaladas
+pelo Homebrew:
 
 ```bash
 export PATH="/opt/homebrew/opt/node@22/bin:/opt/homebrew/opt/openjdk@21/bin:$PATH"
@@ -36,7 +48,7 @@ export JAVA_HOME="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 npm ci
 ```
 
-Para iniciar Firebase Auth e Firestore locais com 12 atletas e três perfis:
+Para iniciar Firebase Auth e Firestore locais com dados de demonstração:
 
 ```bash
 npx firebase emulators:exec --project demo-selector --only auth,firestore \
@@ -45,9 +57,10 @@ npx firebase emulators:exec --project demo-selector --only auth,firestore \
 
 Contas locais, todas com a senha `selector123`:
 
-- `admin@selector.local` — administrador;
-- `diretoria@selector.local` — diretoria;
-- `membro@selector.local` — membro.
+- `admin@selector.local` — administrador aprovado e verificado;
+- `diretoria@selector.local` — diretoria aprovada e verificada;
+- `membro@selector.local` — membro aprovado, com e-mail ainda não verificado;
+- `pendente@selector.local` — membro verificado aguardando aprovação.
 
 Essas contas existem apenas nos emuladores.
 
@@ -55,44 +68,36 @@ Essas contas existem apenas nos emuladores.
 
 ```bash
 npm run lint
+npm run typecheck
 npm test
 npm run test:rules
 npm run test:e2e
 npm run build:pwa
 ```
 
-## Android e iOS
+## Publicação gratuita
 
-Os projetos ficam em `src-capacitor/android` e `src-capacitor/ios`.
+O Firebase `banco-de-dados-seletor-times` é o ambiente público oficial e
+permanece no plano Spark, sem cobrança:
 
-Antes de compilar localmente, copie `.env.example` para `.env`, preencha as variáveis com o aplicativo Web do Firebase e exporte-as no terminal (`set -a; source .env; set +a`). No GitHub, o workflow móvel recebe automaticamente as variáveis da homologação.
+- pull requests recebem uma prévia temporária do Hosting;
+- alterações aprovadas em `main` publicam a PWA, as regras e os índices;
+- o GitHub agenda a rotina de avisos de jogos, substituindo Cloud Functions;
+- nenhuma automação deste repositório habilita o plano Blaze.
 
-```bash
-export ANDROID_HOME="/opt/homebrew/share/android-commandlinetools"
-npm run build:android
-npm run build:android:apk
+A chave pública Web Push está configurada no secret
+`STAGE_FIREBASE_VAPID_KEY`. Os nomes `STAGE_*` foram preservados para não quebrar
+os secrets existentes, embora o projeto seja agora a produção oficial.
 
-npm run build:ios
-```
+## Limites de segurança no plano gratuito
 
-`build:android:apk` gera um APK assinado com a chave de desenvolvimento, adequado para instalação e testes. Uma versão de loja precisa de uma chave permanente e conta Google Play. O iOS precisa de Apple Developer Team, certificados e perfis de provisionamento para produzir o `.ipa` e publicar na App Store.
+- senhas nunca podem ser lidas nem exibidas; o administrador envia um link de
+  redefinição para o e-mail cadastrado;
+- o administrador desativa a conta pelo app; exclusão definitiva no Firebase é
+  um procedimento manual e excepcional;
+- o e-mail de outra pessoa não é alterado pelo navegador, pois ele é uma
+  credencial do Firebase Authentication;
+- notificações agendadas podem levar até o próximo ciclo do GitHub para chegar.
 
-`build:ios` atualiza os arquivos web no projeto nativo e compila para o simulador. Para abrir o projeto e configurar a conta Apple, use `open src-capacitor/ios/App/App.xcodeproj`.
-
-Neste Mac, o Xcode completo, o CoreSimulator e a plataforma iOS 26.5 estão configurados. O pacote Swift foi resolvido e o Vôlei Hub foi compilado, instalado e aberto com sucesso no simulador. Assinatura, TestFlight e App Store continuam dependendo da conta Apple Developer.
-
-Para push nativo, coloque os arquivos fornecidos pelo Firebase em:
-
-- Android: `src-capacitor/android/app/google-services.json`;
-- iOS: `src-capacitor/ios/App/App/GoogleService-Info.plist`.
-
-Esses arquivos não devem ser versionados.
-
-## Publicação
-
-- Pull requests recebem uma prévia temporária no Firebase Hosting.
-- Alterações em `main` publicam a homologação automaticamente.
-- O workflow manual `Publicar produção` usa o projeto `volei-hub`.
-- Funções de push, lembretes e administração de credenciais exigem que o projeto Firebase esteja no plano Blaze.
-
-As variáveis esperadas pelo GitHub estão listadas em `.env.example` e nos workflows de `.github/workflows`.
+Os procedimentos correspondentes estão em
+[docs/FIREBASE_SPARK_OPERATIONS.md](docs/FIREBASE_SPARK_OPERATIONS.md).

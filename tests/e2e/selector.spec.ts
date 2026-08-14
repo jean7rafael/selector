@@ -31,6 +31,11 @@ test('diretoria entra e agenda um jogo', async ({ page }) => {
   await expect(
     page.getByText('Treino de sábado', { exact: true }),
   ).toBeVisible();
+  await page.getByRole('link', { name: 'Abrir lista deste jogo' }).click();
+  await expect(page).toHaveURL(/#\/jogos\/[^/]+$/);
+  await expect(
+    page.getByText('Treino de sábado', { exact: true }),
+  ).toBeVisible();
 });
 
 test('administração edita perfil e função de outro usuário', async ({
@@ -42,7 +47,7 @@ test('administração edita perfil e função de outro usuário', async ({
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByText(/Bem-vindo/)).toBeVisible();
   await expect(
-    page.getByText('admin@selector.local · Administrador', { exact: true }),
+    page.getByText(/admin@selector\.local · Administrador · Aprovado/),
   ).toBeVisible();
   await page.goto('/#/ajustes');
 
@@ -66,6 +71,16 @@ test('administração edita perfil e função de outro usuário', async ({
     page.getByText('Vínculo com atleta alterado', { exact: true }),
   ).toBeVisible();
 
+  const statusSelect = page.getByLabel('Situação de pendente@selector.local');
+  await statusSelect.click();
+  await page.getByRole('option', { name: 'Aprovada', exact: true }).click();
+  await expect(
+    page.getByText('Conta aprovada.', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Situação da conta alterada', { exact: true }),
+  ).toBeVisible();
+
   /* Alterna a função atual para que uma eventual repetição do GitHub
      continue exercitando uma alteração real no mesmo emulador. */
   const roleSelect = page.getByLabel('Função de membro@selector.local');
@@ -78,15 +93,25 @@ test('administração edita perfil e função de outro usuário', async ({
     timeout: 10_000,
   });
 
+  await page
+    .getByRole('button', {
+      name: 'Enviar redefinição para membro@selector.local',
+    })
+    .click();
+  await expect(
+    page.getByText('Redefinição de senha solicitada', { exact: true }),
+  ).toBeVisible();
+
   page.once('dialog', (dialog) => dialog.accept());
   await page
-    .getByRole('button', { name: 'Excluir membro@selector.local' })
+    .getByRole('button', { name: 'Desativar membro@selector.local' })
     .click();
-  /* A remoção da linha é um resultado persistente e confirma que a função
-     terminou; uma mensagem temporária poderia desaparecer em máquinas lentas. */
   await expect(
-    page.getByRole('button', { name: 'Excluir membro@selector.local' }),
-  ).toBeHidden({ timeout: 15_000 });
+    page.getByText('Conta desativada.', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Situação: Não aprovada', { exact: true }),
+  ).toBeVisible();
 });
 
 test('recuperação de senha confirma o envio sem revelar o cadastro', async ({
@@ -117,7 +142,7 @@ test('novo membro cria conta com e-mail, telefone e confirmação da senha', asy
     page.getByText('E-mail pendente', { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText(`${email} · Membro`, { exact: true }),
+    page.getByText(new RegExp(`${email} · Membro · Aguardando aprovação`)),
   ).toBeVisible();
 
   /* Encerrar a sessão devolve um formulário sem a senha anterior. */

@@ -7,7 +7,6 @@ import {
   initializeAuth,
 } from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
-import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 
 /* ===========================================================
    CONFIGURAÇÃO DO FIREBASE
@@ -30,8 +29,8 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 
 /* O aplicativo usa e-mail e senha, sem login por pop-up ou redirecionamento.
-   Declarar somente as persistências evita que o Firebase carregue o resolvedor
-   Cordova no iOS, onde essa inicialização extra bloqueava a primeira rota. */
+   Declarar somente as persistências reduz o pacote e evita inicializações que
+   não participam do fluxo de autenticação do PWA. */
 const firebaseAuth = initializeAuth(firebaseApp, {
   persistence: [
     indexedDBLocalPersistence,
@@ -41,7 +40,6 @@ const firebaseAuth = initializeAuth(firebaseApp, {
   popupRedirectResolver: undefined,
 });
 const db = getFirestore(firebaseApp);
-const cloudFunctions = getFunctions(firebaseApp);
 
 /* ===========================================================
    CONEXÃO AUTOMÁTICA AOS EMULADORES
@@ -56,7 +54,6 @@ if (process.env.DEBUGGING || process.env.FIREBASE_USE_EMULATORS === 'true') {
       disableWarnings: true,
     });
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
-    connectFunctionsEmulator(cloudFunctions, '127.0.0.1', 5001);
   } catch (error) {
     if (!String(error).includes('already')) throw error;
   }
@@ -70,4 +67,4 @@ async function getCurrentUser() {
   return firebaseAuth.currentUser;
 }
 
-export { cloudFunctions, firebaseApp, firebaseAuth, getCurrentUser, db };
+export { firebaseApp, firebaseAuth, getCurrentUser, db };

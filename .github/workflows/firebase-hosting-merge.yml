@@ -1,4 +1,4 @@
-name: Publicar homologação
+name: Publicar produção Web
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   deploy:
-    # Main é o ambiente estável de homologação usado pelo time.
+    # A branch main representa a versão pública e estável do Vôlei Hub.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,7 +18,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Compilar PWA de homologação
+      - name: Compilar PWA de produção
         env:
           FIREBASE_PROJECT_ID: ${{ secrets.STAGE_FIREBASE_PROJECT_ID }}
           FIREBASE_APP_ID: ${{ secrets.STAGE_FIREBASE_APP_ID }}

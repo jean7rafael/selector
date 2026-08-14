@@ -13,16 +13,32 @@ service cloud.firestore {
         : null;
     }
 
+    function emailVerified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    /* Contas antigas não tinham o campo status e continuam aprovadas.
+       Novos cadastros entram como pending até a análise administrativa. */
+    function isApproved(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId))
+        && (!get(/databases/$(database)/documents/users/$(userId)).data.keys().hasAny(['status'])
+          || get(/databases/$(database)/documents/users/$(userId)).data.status == 'approved');
+    }
+
+    function isActiveUser() {
+      return signedIn() && emailVerified() && isApproved(request.auth.uid);
+    }
+
     function isAdmin() {
-      return role() == 'admin';
+      return isActiveUser() && role() == 'admin';
     }
 
     function isStaff() {
-      return role() in ['admin', 'director'];
+      return isActiveUser() && role() in ['admin', 'director'];
     }
 
     function canRespondFor(userId) {
-      return signedIn() && (
+      return isActiveUser() && isApproved(userId) && (
         request.auth.uid == userId
         || isStaff()
         || exists(/databases/$(database)/documents/delegations/$(userId)/delegates/$(request.auth.uid))
@@ -31,7 +47,7 @@ service cloud.firestore {
 
     function validUserDocument() {
       return request.resource.data.keys().hasOnly([
-          'displayName', 'email', 'username', 'playerId', 'role', 'createdAt', 'updatedAt'
+          'displayName', 'email', 'username', 'playerId', 'role', 'status', 'createdAt', 'updatedAt'
         ])
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() > 0
@@ -43,7 +59,21 @@ service cloud.firestore {
           || request.resource.data.playerId == null
           || (request.resource.data.playerId is string
             && request.resource.data.playerId.size() > 0))
-        && request.resource.data.role in ['member', 'director', 'admin'];
+        && request.resource.data.role in ['member', 'director', 'admin']
+        && (!request.resource.data.keys().hasAny(['status'])
+          || request.resource.data.status in ['pending', 'approved', 'rejected']);
+    }
+
+    function validDirectoryDocument(userId) {
+      return request.resource.data.keys().hasOnly([
+          'displayName', 'playerId', 'updatedAt', 'userId'
+        ])
+        && request.resource.data.userId == userId
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && (!request.resource.data.keys().hasAny(['playerId'])
+          || request.resource.data.playerId == null
+          || request.resource.data.playerId is string);
     }
 
     function validContactDocument() {
@@ -69,15 +99,15 @@ service cloud.firestore {
           'targetEmail', 'targetName', 'targetUid'
         ])
         && request.resource.data.action in [
-          'user.credentials', 'user.delete', 'user.playerLink',
-          'user.profile', 'user.role'
+          'user.credentials', 'user.delete', 'user.passwordReset',
+          'user.playerLink', 'user.profile', 'user.role', 'user.status'
         ]
         && request.resource.data.actorUid == request.auth.uid
         && request.resource.data.actorEmail is string
         && request.resource.data.changedFields is list
         && request.resource.data.changedFields.hasOnly([
           'account', 'displayName', 'email', 'password', 'phone',
-          'playerId', 'role', 'username'
+          'playerId', 'role', 'status', 'username'
         ])
         && request.resource.data.createdAt == request.time
         && request.resource.data.targetEmail is string
@@ -89,16 +119,17 @@ service cloud.firestore {
     match /players/{playerId} {
       // A lista serve à seleção pública; somente a equipe altera o cadastro.
       allow read: if true;
-      allow create, update, delete: if isStaff();
+      allow create, update, delete: if isStaff() && isActiveUser();
     }
 
     match /users/{userId} {
-      // Usuários autenticados consultam o elenco para delegar presença.
-      allow read: if signedIn();
+      // O perfil completo contém o e-mail e fica restrito ao titular e à administração.
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow create: if signedIn()
         && request.auth.uid == userId
         && validUserDocument()
         && request.resource.data.role == 'member'
+        && request.resource.data.status == 'pending'
         && request.resource.data.email == request.auth.token.email;
       allow update: if validUserDocument()
         && ((isAdmin()
@@ -107,13 +138,24 @@ service cloud.firestore {
         || (signedIn()
           && request.auth.uid == userId
           && request.resource.data.role == resource.data.role
+          && request.resource.data.status == resource.data.status
           && request.resource.data.email == request.auth.token.email));
-      allow delete: if isAdmin() && request.auth.uid != userId;
+      // A remoção definitiva também precisa apagar o Firebase Authentication;
+      // por isso o PWA desativa a conta e a exclusão fica fora do navegador.
+      allow delete: if false;
 
       match /pushSubscriptions/{subscriptionId} {
         // Cada aparelho gerencia somente os tokens de sua própria conta.
-        allow read, create, update, delete: if signedIn() && request.auth.uid == userId;
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow create, update, delete: if isActiveUser() && request.auth.uid == userId;
       }
+    }
+
+    match /memberDirectory/{userId} {
+      // A lista interna expõe somente nome e vínculo esportivo de contas aprovadas.
+      allow read: if isAdmin() || isActiveUser();
+      allow create, update: if isAdmin() && validDirectoryDocument(userId);
+      allow delete: if isAdmin();
     }
 
     match /userContacts/{userId} {
@@ -126,7 +168,7 @@ service cloud.firestore {
 
     match /playerLinks/{playerId} {
       // O ID canônico reserva um atleta para no máximo uma conta.
-      allow read: if signedIn();
+      allow read: if isAdmin();
       allow create: if isAdmin() && validPlayerLinkDocument(playerId);
       allow update: if false;
       allow delete: if isAdmin();
@@ -142,7 +184,7 @@ service cloud.firestore {
     match /games/{gameId} {
       // Agenda e placar são públicos; apenas a equipe cria ou altera jogos.
       allow read: if true;
-      allow create, update, delete: if isStaff();
+      allow create, update, delete: if isStaff() && isActiveUser();
 
       match /attendances/{userId} {
         // O próprio usuário, a equipe ou um delegado explícito pode responder.
@@ -154,9 +196,9 @@ service cloud.firestore {
 
     match /delegations/{fromUserId}/delegates/{toUserId} {
       // A pessoa representada mantém controle sobre suas delegações.
-      allow read: if signedIn();
-      allow create, update, delete: if isStaff()
-        || (signedIn() && request.auth.uid == fromUserId);
+      allow read: if isActiveUser();
+      allow create, update, delete: if isActiveUser() && (isStaff()
+        || request.auth.uid == fromUserId);
     }
   }
 }
