@@ -60,6 +60,25 @@ ou ser suspensos; o mesmo workflow pode ser executado manualmente na aba
 A VAPID é uma chave pública e entra no aplicativo compilado. A chave privada da
 conta de serviço permanece somente nos secrets do GitHub.
 
+## Permissões da rotina de notificações
+
+A identidade guardada no secret da conta de serviço precisa ter, no mínimo,
+estas permissões no projeto oficial:
+
+- **Usuário do Cloud Datastore** (`roles/datastore.user`), para ler inscrições,
+  perfis e jogos e para gravar o resultado do processamento;
+- **Visualizador do Firebase Authentication** (`roles/firebaseauth.viewer`) ou
+  um papel equivalente mais amplo já existente, para confirmar se o e-mail da
+  conta foi verificado;
+- **Administrador da API Firebase Cloud Messaging**
+  (`roles/firebasecloudmessaging.admin`), para enviar as mensagens pelo FCM V1.
+
+Esses papéis não ativam o plano Blaze. Alterações no IAM podem levar alguns
+minutos para surtir efeito; uma recusa imediata deve ser testada novamente antes
+de se concluir que a configuração falhou. A execução manual validada em
+14/08/2026 está registrada em
+https://github.com/jean7rafael/selector/actions/runs/31848906895.
+
 ## Validação de Web Push
 
 1. confirmar a chave Web Push no Firebase Cloud Messaging;
@@ -118,4 +137,6 @@ automatizada pode ser reavaliada se houver um backend gratuito confiável.
 - mensagem de VAPID ausente: conferir o secret e republicar;
 - aviso não chegou: executar o workflow manualmente e consultar seu registro;
 - conta não aparece para delegação: conferir `status` e `memberDirectory`;
-- permissão negada: conferir também as regras publicadas, não apenas a tela.
+- permissão negada no PWA: conferir as regras publicadas;
+- permissão negada no workflow: conferir os papéis IAM da conta de serviço. O
+  SDK administrativo não usa as regras de cliente do Firestore.
