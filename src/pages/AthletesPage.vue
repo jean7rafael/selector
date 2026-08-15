@@ -1,22 +1,25 @@
 <template>
-  <q-page padding>
-    <div class="page-content q-gutter-lg">
-      <!-- Título e cópia de segurança do cadastro atual. -->
-      <div class="row items-center q-col-gutter-md">
-        <div class="col">
-          <div class="text-h4">Atletas</div>
+  <q-page class="app-page">
+    <div class="app-page-content q-gutter-lg">
+      <!-- O cabeçalho compartilhado empilha texto e ações no celular. -->
+      <div class="app-page-header">
+        <div class="app-page-heading">
+          <div class="app-page-title text-h4">Atletas</div>
           <div class="text-body2 text-grey-7">
             Selecione quem vai jogar e monte times equilibrados.
           </div>
         </div>
-        <div class="col-auto row q-gutter-sm">
+        <div class="app-page-actions">
           <q-btn
             outline
             icon="download"
-            label="Exportar"
-            :disable="players.length === 0"
+            :label="exportButtonLabel"
+            :aria-label="exportButtonAccessibleLabel"
+            :disable="selectedPlayers.length === 0"
             @click="exportPlayers"
-          />
+          >
+            <q-tooltip>{{ exportButtonHint }}</q-tooltip>
+          </q-btn>
           <q-btn
             v-if="canManagePlayers"
             color="primary"
@@ -42,22 +45,35 @@
         :loading="loading"
         :rows-per-page-options="[0]"
         :pagination="{ rowsPerPage: 0 }"
+        :grid="$q.screen.lt.md"
       >
-        <template #top-right>
-          <q-checkbox
-            v-model="selectAll"
-            label="Selecionar todos"
-            color="green"
-            @update:model-value="toggleAll"
-          />
-          <q-btn
-            v-if="canManagePlayers && selectedPlayers.length"
-            flat
-            icon="delete"
-            color="negative"
-            label="Excluir selecionados"
-            @click="deleteSelected"
-          />
+        <!-- A barra da tabela também muda de linha antes de comprimir o texto. -->
+        <template #top>
+          <div class="app-table-toolbar">
+            <div>
+              <div class="text-h6">Jogadores de vôlei</div>
+              <div class="text-caption text-grey-7">
+                {{ players.length }} cadastrados ·
+                {{ selectedPlayers.length }} selecionados
+              </div>
+            </div>
+            <div class="app-wrap-actions">
+              <q-checkbox
+                v-model="selectAll"
+                label="Selecionar todos"
+                color="green"
+                @update:model-value="toggleAll"
+              />
+              <q-btn
+                v-if="canManagePlayers && selectedPlayers.length"
+                flat
+                icon="delete"
+                color="negative"
+                label="Excluir selecionados"
+                @click="deleteSelected"
+              />
+            </div>
+          </div>
         </template>
 
         <template #body-cell-selected="props">
@@ -89,6 +105,68 @@
             />
           </q-td>
         </template>
+
+        <!-- Em celulares, cada atleta vira um cartão legível. A tabela
+             tradicional permanece no computador, onde há espaço para colunas. -->
+        <template #item="props">
+          <div class="col-12 q-pa-xs">
+            <q-card flat bordered class="athlete-mobile-card">
+              <q-card-section class="athlete-mobile-header">
+                <q-checkbox
+                  v-model="props.row.selected"
+                  color="green"
+                  :aria-label="`Selecionar ${props.row.name}`"
+                />
+                <div class="athlete-mobile-name">
+                  <div class="text-subtitle1 text-weight-medium">
+                    {{ props.row.name }}
+                  </div>
+                  <div class="text-caption text-grey-7">
+                    {{ props.row.position }}
+                  </div>
+                </div>
+                <div v-if="canManagePlayers" class="app-wrap-actions">
+                  <q-btn
+                    round
+                    flat
+                    dense
+                    icon="edit"
+                    :aria-label="`Editar ${props.row.name}`"
+                    @click="openEditPlayer(props.row)"
+                  />
+                  <q-btn
+                    round
+                    flat
+                    dense
+                    icon="delete"
+                    color="negative"
+                    :aria-label="`Excluir ${props.row.name}`"
+                    @click="deleteOne(props.row)"
+                  />
+                </div>
+              </q-card-section>
+              <q-separator />
+              <q-list dense>
+                <q-item>
+                  <q-item-section>Ordem</q-item-section>
+                  <q-item-section side>{{ props.row.order }}</q-item-section>
+                </q-item>
+                <q-item>
+                  <q-item-section>Relevância</q-item-section>
+                  <q-item-section side>{{
+                    Math.round(props.row.relevanciaBase)
+                  }}</q-item-section>
+                </q-item>
+                <q-item>
+                  <q-item-section>Calculada</q-item-section>
+                  <q-item-section side>{{
+                    Math.round(props.row.relevanciaCalc)
+                  }}</q-item-section>
+                </q-item>
+              </q-list>
+            </q-card>
+          </div>
+        </template>
         <template #no-data>
           <div class="full-width text-center q-pa-lg text-grey-7">
             Nenhum atleta cadastrado.
@@ -103,15 +181,16 @@
             <div class="text-h6">Formação dos times</div>
             <div class="text-body2">{{ teamInfo.message }}</div>
           </div>
-          <div class="col-auto">
+          <div class="col-12 col-sm-auto">
             <q-toggle
               v-model="balanceWomen"
               label="Equilibrar mulheres"
               color="orange"
             />
           </div>
-          <div class="col-auto">
+          <div class="col-12 col-sm-auto">
             <q-btn
+              class="app-mobile-full"
               color="green"
               icon="groups"
               label="Selecionar times"
@@ -154,7 +233,7 @@
 
     <!-- Um único formulário atende inclusão e edição. -->
     <q-dialog v-model="playerDialog">
-      <q-card style="width: 420px; max-width: 95vw">
+      <q-card class="app-dialog-card athlete-dialog-card">
         <q-card-section>
           <div class="text-h6">
             {{ editingPlayer.id ? 'Editar atleta' : 'Adicionar atleta' }}
@@ -341,6 +420,21 @@ const visibleColumns = computed(() =>
 const selectedPlayers = computed(() =>
   players.value.filter((player) => player.selected),
 );
+const exportButtonLabel = computed(() =>
+  selectedPlayers.value.length
+    ? `Exportar selecionados (${selectedPlayers.value.length})`
+    : 'Exportar selecionados',
+);
+const exportButtonHint = computed(() =>
+  selectedPlayers.value.length === 1
+    ? 'O arquivo terá somente o atleta marcado.'
+    : selectedPlayers.value.length > 1
+      ? `O arquivo terá somente os ${selectedPlayers.value.length} atletas marcados.`
+      : 'Selecione ao menos um atleta para exportar.',
+);
+const exportButtonAccessibleLabel = computed(
+  () => `${exportButtonLabel.value}. ${exportButtonHint.value}`,
+);
 const teamInfo = computed(() => {
   const count = selectedPlayers.value.length;
   if (count > 21) return { message: 'O máximo é 21 atletas.', teams: 0 };
@@ -488,13 +582,23 @@ function formTeams() {
 /* ===========================================================
    CÓPIA DE SEGURANÇA
 
-   Exportar não altera o banco. A inclusão de novos atletas passa
-   exclusivamente pelo formulário do aplicativo.
+   Exportar não altera o banco e inclui somente os atletas marcados.
+   A inclusão de novos atletas passa exclusivamente pelo formulário.
 =========================================================== */
 
 function exportPlayers() {
+  if (!selectedPlayers.value.length) {
+    $q.notify({
+      type: 'warning',
+      message: 'Selecione ao menos um atleta antes de exportar.',
+    });
+    return;
+  }
   const content = JSON.stringify(
-    players.value.map((player) => ({ ...player, selected: false })),
+    selectedPlayers.value.map((player) => ({
+      ...player,
+      selected: false,
+    })),
     null,
     2,
   );
@@ -502,17 +606,20 @@ function exportPlayers() {
   link.href = URL.createObjectURL(
     new Blob([content], { type: 'application/json' }),
   );
-  link.download = 'atletas-selector.json';
+  link.download = 'atletas-selecionados-selector.json';
   link.click();
   URL.revokeObjectURL(link.href);
+  $q.notify({
+    type: 'positive',
+    message:
+      selectedPlayers.value.length === 1
+        ? '1 atleta exportado.'
+        : `${selectedPlayers.value.length} atletas exportados.`,
+  });
 }
 </script>
 
 <style scoped>
-.page-content {
-  max-width: 1180px;
-  margin: 0 auto;
-}
 .teams-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -520,5 +627,30 @@ function exportPlayers() {
 }
 .team-card {
   min-width: 0;
+}
+
+.athlete-mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.athlete-mobile-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.athlete-mobile-card {
+  width: 100%;
+}
+
+.athlete-dialog-card {
+  width: 420px;
+}
+
+@media (max-width: 599px) {
+  .teams-container {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

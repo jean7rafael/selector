@@ -1,16 +1,15 @@
 <template>
-  <q-page padding>
-    <div class="page-content q-gutter-lg">
-      <!-- O cabeçalho empilha título e ações em telas estreitas para impedir
-           que os botões comprimam o texto no celular. -->
-      <div class="games-header">
-        <div class="games-heading">
-          <div class="games-title text-h4">Jogos e presença</div>
+  <q-page class="app-page">
+    <div class="app-page-content app-page-content--regular q-gutter-lg">
+      <!-- O cabeçalho global mantém o mesmo comportamento em todas as telas. -->
+      <div class="app-page-header">
+        <div class="app-page-heading">
+          <div class="app-page-title text-h4">Jogos e presença</div>
           <div class="text-body2 text-grey-7">
             Confirme quem participa dos próximos encontros.
           </div>
         </div>
-        <div class="games-actions">
+        <div class="app-page-actions">
           <q-btn
             v-if="isGameDetail"
             flat
@@ -162,7 +161,7 @@
 
     <!-- Formulário de um novo encontro. -->
     <q-dialog v-model="gameDialog">
-      <q-card style="width: 460px; max-width: 95vw">
+      <q-card class="app-dialog-card game-dialog-card">
         <q-card-section><div class="text-h6">Agendar jogo</div></q-card-section>
         <q-form @submit.prevent="saveGame">
           <q-card-section class="q-gutter-md">
@@ -447,59 +446,19 @@ async function saveGame() {
 </script>
 
 <style scoped>
-.page-content {
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-/* No computador, o título ocupa o espaço disponível e as ações mantêm suas
-   larguras naturais à direita. */
-.games-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.games-heading {
-  min-width: 0;
-}
-
-.games-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 8px;
-}
-
 .games-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 18px;
 }
 
+.game-dialog-card {
+  width: 460px;
+}
+
 /* Em celulares, cada região recebe uma linha própria. A grade também pode
    encolher abaixo de 320 px sem provocar rolagem horizontal. */
 @media (max-width: 599px) {
-  .games-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .games-title {
-    font-size: 2rem;
-    line-height: 1.2;
-  }
-
-  .games-actions {
-    flex-wrap: wrap;
-    width: 100%;
-  }
-
-  .games-actions :deep(.q-btn) {
-    flex: 1 1 auto;
-  }
-
   .games-grid {
     grid-template-columns: minmax(0, 1fr);
   }

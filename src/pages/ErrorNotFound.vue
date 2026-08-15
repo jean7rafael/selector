@@ -1,14 +1,12 @@
 <template>
   <!-- Página de retorno para qualquer endereço não cadastrado. -->
-  <div class="fullscreen bg-blue text-white text-center q-pa-md flex flex-center">
+  <div
+    class="fullscreen bg-blue text-white text-center q-pa-md flex flex-center"
+  >
     <div>
-      <div style="font-size: 30vh">
-        404
-      </div>
+      <div class="error-code">404</div>
 
-      <div class="text-h2" style="opacity:.4">
-        Esta página não existe.
-      </div>
+      <div class="error-title text-h2">Esta página não existe.</div>
 
       <q-btn
         class="q-mt-xl"
@@ -27,6 +25,24 @@
 import { defineComponent } from 'vue';
 
 export default defineComponent({
-  name: 'ErrorNotFound'
+  name: 'ErrorNotFound',
 });
 </script>
+
+<style scoped>
+.error-code {
+  font-size: clamp(7rem, 30vh, 18rem);
+  line-height: 1;
+}
+
+.error-title {
+  opacity: 0.4;
+}
+
+@media (max-width: 599px) {
+  .error-title {
+    font-size: 2rem;
+    line-height: 1.2;
+  }
+}
+</style>

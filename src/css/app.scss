@@ -1,1 +1,152 @@
-// app global css in SCSS form
+/* ===========================================================
+   ESTRUTURA RESPONSIVA COMPARTILHADA
+
+   Todas as telas usam os mesmos limites, cabeçalhos e grupos de
+   ações. Assim uma nova página herda o comportamento móvel sem
+   precisar recriar regras específicas para título e botões.
+=========================================================== */
+
+.app-page {
+  width: 100%;
+  min-width: 0;
+  padding: 24px;
+}
+
+.app-page-content {
+  width: 100%;
+  max-width: 1180px;
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.app-page-content--regular {
+  max-width: 1000px;
+}
+
+.app-page-content--narrow {
+  max-width: 760px;
+}
+
+.app-page-content--compact {
+  max-width: 420px;
+}
+
+.app-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 16px;
+}
+
+.app-page-heading {
+  min-width: 0;
+}
+
+.app-page-title {
+  overflow-wrap: break-word;
+}
+
+.app-page-actions,
+.app-wrap-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-page-actions {
+  flex: 0 0 auto;
+}
+
+.app-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  gap: 16px;
+}
+
+.app-card-actions-responsive {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-card-actions-responsive .q-btn {
+  margin: 0;
+}
+
+.app-dialog-card {
+  width: 520px;
+  max-width: calc(100vw - 32px);
+}
+
+/* Quasar protege os componentes isolados; esta regra garante que textos
+   longos nunca obriguem a página inteira a ultrapassar a tela. */
+.q-page-container,
+.q-page,
+.q-card,
+.q-item__section {
+  min-width: 0;
+}
+
+/* A navegação lateral reduz a área útil em tablets; por isso o cabeçalho
+   muda de linha antes do limite estrito de um telefone. */
+@media (max-width: 1023px) {
+  .app-page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .app-page-actions {
+    width: 100%;
+  }
+}
+
+@media (max-width: 599px) {
+  .app-page {
+    padding: 16px;
+  }
+
+  .app-page-title {
+    font-size: 2rem;
+    line-height: 1.2;
+  }
+
+  .app-page-actions > .q-btn {
+    flex: 1 1 auto;
+  }
+
+  .app-table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .app-table-toolbar .app-wrap-actions {
+    width: 100%;
+  }
+
+  .app-mobile-full,
+  .app-mobile-full.q-btn {
+    width: 100%;
+  }
+
+  .app-card-actions-responsive .q-btn {
+    flex: 1 1 auto;
+  }
+
+  .app-dialog-card {
+    max-width: calc(100vw - 24px);
+  }
+}
+
+@media (max-width: 359px) {
+  .app-page {
+    padding: 12px;
+  }
+
+  .app-page-title {
+    font-size: 1.75rem;
+  }
+}

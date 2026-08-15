@@ -1,10 +1,10 @@
 <template>
-  <q-page padding class="row items-center justify-center">
+  <q-page class="app-page row items-center justify-center">
     <!-- Apresentação curta dos três fluxos principais do aplicativo. -->
-    <div class="full-width" style="max-width: 960px">
+    <div class="app-page-content app-page-content--regular">
       <div class="text-center q-mb-xl">
-        <div class="text-h3">Vôlei Hub</div>
-        <p class="text-h6 text-grey-7">
+        <div class="home-title text-h3">Vôlei Hub</div>
+        <p class="home-subtitle text-h6 text-grey-7">
           Times equilibrados, jogos organizados e presença num só lugar.
         </p>
       </div>
@@ -63,3 +63,16 @@ const features = [
   },
 ];
 </script>
+
+<style scoped>
+@media (max-width: 599px) {
+  .home-title {
+    font-size: 2.5rem;
+    line-height: 1.2;
+  }
+
+  .home-subtitle {
+    font-size: 1.1rem;
+  }
+}
+</style>
