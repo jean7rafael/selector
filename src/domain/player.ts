@@ -25,6 +25,15 @@ export interface Player {
 
 export type PlayerDraft = Omit<Player, 'id'>;
 
+export interface PlayerImportResult {
+  players: Player[];
+  invalidCount: number;
+}
+
+/* Um lote do Firestore aceita até 500 operações. A margem preserva espaço
+   para futuras gravações auxiliares sem tornar a importação imprevisível. */
+export const maxImportedPlayers = 450;
+
 /* Cria um formulário previsível para inclusão de novos atletas. */
 export const emptyPlayer = (order = 0): Player => ({
   id: '',
@@ -96,6 +105,56 @@ export function normalizePlayer(
 
   player.relevanciaCalc = calculatePlayerRelevance(player);
   return player;
+}
+
+/* ==========================================================
+   ARQUIVOS DE INTERCÂMBIO
+
+   Um JSON é entrada não confiável, mesmo quando normalmente vem do próprio
+   aplicativo. O parser limita o lote, ignora itens sem nome e normaliza todos
+   os números antes de a página comparar duplicidades e gravar no Firebase.
+========================================================== */
+
+export function parseImportedPlayers(
+  value: unknown,
+  firstOrder = 1,
+): PlayerImportResult {
+  if (!Array.isArray(value)) throw new Error('INVALID_PLAYER_IMPORT');
+  if (value.length > maxImportedPlayers)
+    throw new Error('PLAYER_IMPORT_TOO_LARGE');
+
+  const players: Player[] = [];
+  let invalidCount = 0;
+
+  value.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      invalidCount += 1;
+      return;
+    }
+    const imported = normalizePlayer(
+      '',
+      entry as Partial<Player>,
+      firstOrder + index,
+    );
+    if (!imported.name || imported.name.length > 120) {
+      invalidCount += 1;
+      return;
+    }
+
+    /* Habilidades no formulário variam de zero a cinco. Limitar arquivos
+       externos evita relevâncias artificiais ou valores negativos. */
+    imported.relevanciaBase = Math.max(0, imported.relevanciaBase);
+    imported.pass = Math.min(5, Math.max(0, imported.pass));
+    imported.attack = Math.min(5, Math.max(0, imported.attack));
+    imported.positioning = Math.min(5, Math.max(0, imported.positioning));
+    imported.block = Math.min(5, Math.max(0, imported.block));
+    imported.serve = Math.min(5, Math.max(0, imported.serve));
+    imported.relevanciaCalc = calculatePlayerRelevance(imported);
+    imported.selected = false;
+    players.push(imported);
+  });
+
+  return { players, invalidCount };
 }
 
 /* Remove campos exclusivos da interface antes de persistir. */

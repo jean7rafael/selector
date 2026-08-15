@@ -1,7 +1,7 @@
 <template>
   <!-- O mesmo card reúne entrada, cadastro e a sessão já autenticada. -->
-  <q-page padding class="row justify-center">
-    <div class="full-width" style="max-width: 420px">
+  <q-page class="app-page row justify-center">
+    <div class="app-page-content app-page-content--compact">
       <q-card>
         <q-card-section>
           <div class="text-h5">Acesso do usuário</div>
@@ -42,7 +42,7 @@
             A administração não aprovou esta conta. Procure a diretoria para
             revisar o cadastro.
           </p>
-          <div class="row q-gutter-sm q-mt-md">
+          <div class="app-wrap-actions q-mt-md">
             <q-btn
               v-if="!emailVerified"
               outline
@@ -138,7 +138,7 @@
                 :rules="passwordConfirmationRules"
               />
             </q-card-section>
-            <q-card-actions align="right">
+            <q-card-actions align="right" class="app-card-actions-responsive">
               <q-btn
                 v-if="mode === 'login'"
                 flat

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 test('lista atletas e forma dois times', async ({ page }) => {
   await page.goto('/#/atletas');
@@ -10,17 +11,84 @@ test('lista atletas e forma dois times', async ({ page }) => {
   for (let index = 0; index < 8; index += 1)
     await rowCheckboxes.nth(index).click();
 
+  /* O download deve refletir a seleção local, sem copiar os demais atletas
+     cadastrados no Firestore. */
+  await expect(
+    page.getByRole('button', { name: /Exportar selecionados \(8\)/ }),
+  ).toContainText('Exportar selecionados (8)');
+  const downloadPromise = page.waitForEvent('download');
+  await page
+    .getByRole('button', { name: /Exportar selecionados \(8\)/ })
+    .click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe(
+    'atletas-selecionados-selector.json',
+  );
+  const downloadPath = await download.path();
+  expect(downloadPath).not.toBeNull();
+  const exportedPlayers = JSON.parse(
+    await readFile(downloadPath!, 'utf8'),
+  ) as Array<{ name: string; selected: boolean }>;
+  expect(exportedPlayers).toHaveLength(8);
+  expect(exportedPlayers.map((player) => player.name)).toEqual([
+    'Ana',
+    'Bia',
+    'Clara',
+    'Davi',
+    'Edu',
+    'Fábio',
+    'Gabi',
+    'Heitor',
+  ]);
+  expect(exportedPlayers.every((player) => !player.selected)).toBe(true);
+
   await page.getByRole('button', { name: 'Selecionar times' }).click();
   await expect(page.getByText('Time 1', { exact: true })).toBeVisible();
   await expect(page.getByText('Time 2', { exact: true })).toBeVisible();
 });
 
-test('diretoria entra e agenda um jogo', async ({ page }) => {
+test('diretoria importa atletas e agenda um jogo', async ({ page }) => {
   await page.goto('/#/login');
   await page.getByLabel('E-mail').fill('diretoria@selector.local');
   await page.getByLabel('Senha', { exact: true }).fill('selector123');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByText(/Bem-vindo/)).toBeVisible();
+
+  /* A diretoria integra um arquivo exportado por outra instalação. O nome já
+     existente e o registro sem nome aparecem na prévia, mas não são gravados. */
+  await page.goto('/#/atletas');
+  await page
+    .getByRole('button', { name: 'Importar atletas de um arquivo JSON' })
+    .click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'atletas-externos.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(
+      JSON.stringify([
+        {
+          name: 'Laura importada',
+          position: 'Ponteiro',
+          gender: 'Mulher',
+          relevanciaBase: 500,
+          pass: 4,
+        },
+        { name: 'Ana', position: 'Levantador' },
+        { position: 'Central' },
+      ]),
+    ),
+  });
+  await expect(page.getByText(/1 novo atleta será adicionado/)).toBeVisible();
+  await expect(page.getByText(/1 nome repetido será ignorado/)).toBeVisible();
+  await expect(
+    page.getByText(/1 registro inválido será ignorado/),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Importar 1 atleta' }).click();
+  await expect(
+    page.getByText(/1 atleta importado\. 2 registros ignorados/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('cell', { name: 'Laura importada', exact: true }),
+  ).toBeVisible();
 
   await page.goto('/#/jogos');
   await page.getByRole('button', { name: 'Novo jogo' }).click();
@@ -237,4 +305,102 @@ test('detalhe do jogo mantém o cabeçalho legível no celular', async ({
       document.documentElement.clientWidth,
   );
   expect(hasHorizontalOverflow).toBe(false);
+});
+
+test('padrão global mantém atletas e ajustes responsivos no celular', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/#/login');
+  await page.getByLabel('E-mail').fill('admin@selector.local');
+  await page.getByLabel('Senha', { exact: true }).fill('selector123');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page.getByText(/Bem-vindo/)).toBeVisible();
+
+  await page.goto('/#/atletas');
+  const athletesTitle = page
+    .getByRole('main')
+    .getByText('Atletas', { exact: true });
+  const addButton = page.getByRole('button', { name: 'Adicionar' });
+  await expect(athletesTitle).toBeVisible();
+  await expect(addButton).toBeVisible();
+  await expect(page.getByText('Ana', { exact: true }).first()).toBeVisible();
+  await expect
+    .poll(() => page.locator('.athlete-mobile-card').count())
+    .toBeGreaterThanOrEqual(12);
+  await expect(
+    page.getByRole('button', {
+      name: /Exportar selecionados.*Selecione ao menos um atleta/,
+    }),
+  ).toBeDisabled();
+
+  const titleBox = await athletesTitle.boundingBox();
+  const addButtonBox = await addButton.boundingBox();
+  expect(titleBox).not.toBeNull();
+  expect(addButtonBox).not.toBeNull();
+  expect(titleBox!.width).toBeGreaterThan(300);
+  expect(addButtonBox!.y).toBeGreaterThan(titleBox!.y + titleBox!.height);
+
+  await page.getByRole('checkbox', { name: 'Selecionar Ana' }).click();
+  await expect(
+    page.getByRole('button', {
+      name: /Exportar selecionados \(1\).*somente o atleta marcado/,
+    }),
+  ).toContainText('Exportar selecionados (1)');
+
+  let hasHorizontalOverflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth,
+  );
+  expect(hasHorizontalOverflow).toBe(false);
+
+  /* Ajustes contém os controles mais largos do sistema. Ele também precisa
+     caber sem esconder seletores ou exigir rolagem lateral. */
+  await page.goto('/#/ajustes');
+  await expect(
+    page.getByRole('main').getByText('Ajustes', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Função de membro@selector.local'),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Situação de membro@selector.local'),
+  ).toBeVisible();
+  hasHorizontalOverflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth,
+  );
+  expect(hasHorizontalOverflow).toBe(false);
+
+  await page.goto('/#/');
+  await expect(
+    page.getByText('Vôlei Hub', { exact: true }).last(),
+  ).toBeVisible();
+  hasHorizontalOverflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth,
+  );
+  expect(hasHorizontalOverflow).toBe(false);
+
+  /* Telefones pequenos e tablets com o menu lateral aberto exercitam áreas
+     úteis diferentes. Todas as rotas principais devem continuar contidas. */
+  for (const width of [320, 768]) {
+    await page.setViewportSize({ width, height: 844 });
+    for (const route of ['/', '/atletas', '/jogos', '/ajustes', '/login']) {
+      await page.goto(`/#${route}`);
+      await expect(page.getByRole('main')).toBeVisible();
+      hasHorizontalOverflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth >
+          document.documentElement.clientWidth,
+      );
+      expect(
+        hasHorizontalOverflow,
+        `A rota ${route} não deve transbordar em ${width}px`,
+      ).toBe(false);
+    }
+  }
 });

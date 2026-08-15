@@ -11,12 +11,17 @@ agendar jogos e confirmar presença.
 - Arquitetura PWA: [docs/PWA_ARCHITECTURE.md](docs/PWA_ARCHITECTURE.md)
 - Operação no Firebase: [docs/FIREBASE_SPARK_OPERATIONS.md](docs/FIREBASE_SPARK_OPERATIONS.md)
 - Modelo de dados: [docs/DATA_MODEL.md](docs/DATA_MODEL.md)
+- Interface responsiva: [docs/RESPONSIVE_INTERFACE.md](docs/RESPONSIVE_INTERFACE.md)
+- Transferência de atletas: [docs/PLAYER_TRANSFER.md](docs/PLAYER_TRANSFER.md)
 
 ## O que funciona
 
 - lista pública de atletas com alterações restritas à diretoria;
 - formação de dois ou três times para grupos de 8 a 21 atletas;
 - equilíbrio opcional da quantidade de mulheres;
+- exportação em JSON somente dos atletas marcados, com contagem no botão;
+- importação administrativa de arquivos JSON, com prévia e sem duplicar nomes;
+- interface responsiva compartilhada para celular, tablet e computador;
 - criação de conta com e-mail, telefone e repetição da senha;
 - verificação do e-mail e aprovação administrativa antes da participação;
 - nome de usuário iniciado com a parte do e-mail anterior ao `@`;

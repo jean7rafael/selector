@@ -2,7 +2,7 @@
   <!-- Estrutura comum de cabeçalho, menu lateral e página atual. -->
   <q-layout view="hHh lpR fFf">
     <q-header elevated>
-      <q-toolbar>
+      <q-toolbar class="app-toolbar">
         <q-btn
           flat
           round
@@ -13,20 +13,27 @@
           @click="drawer = !drawer"
         />
         <q-separator dark vertical inset />
-        <q-btn color="white" flat to="/">Vôlei Hub</q-btn>
+        <q-btn class="app-brand" color="white" flat to="/">Vôlei Hub</q-btn>
         <q-space />
         <span v-if="currentUser" class="text-caption q-mr-sm gt-xs">
           {{ currentUser.email }} · {{ roleLabel }} · {{ statusLabel }}
         </span>
         <q-btn
           v-if="currentUser"
+          class="app-session-button"
           color="white"
           icon-right="logout"
           flat
           to="/login"
           >Sair</q-btn
         >
-        <q-btn v-else color="white" icon-right="login" flat to="/login"
+        <q-btn
+          v-else
+          class="app-session-button"
+          color="white"
+          icon-right="login"
+          flat
+          to="/login"
           >Entrar</q-btn
         >
       </q-toolbar>
@@ -120,3 +127,17 @@ const statusLabel = computed(() =>
       : 'Aguardando aprovação',
 );
 </script>
+
+<style scoped>
+.app-toolbar {
+  min-width: 0;
+}
+
+@media (max-width: 359px) {
+  .app-brand,
+  .app-session-button {
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+}
+</style>

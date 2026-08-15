@@ -19,6 +19,7 @@ O remoto `origin` aponta para `https://github.com/jean7rafael/selector.git`.
 - `src/domain`: regras puras de atleta, perfil e seleção de times;
 - `src/misc`: sessão, Firestore, usuários, auditoria, jogos e notificações;
 - `src/pages`: telas Quasar;
+- `src/css/app.scss`: estrutura responsiva compartilhada pelas telas;
 - `src-pwa`: cache offline, service worker e notificações em segundo plano;
 - `scripts`: carga local e envio gratuito das notificações agendadas;
 - `tests`: regras de segurança, domínio e fluxos completos no navegador;
@@ -60,17 +61,23 @@ mecanismo de segurança.
 
 - revisão de estilo: aprovada;
 - verificação de tipos: aprovada;
-- 18 testes unitários: aprovados;
+- 20 testes unitários: aprovados;
 - 15 testes de regras do Firestore: aprovados;
-- 7 fluxos completos no Chromium: aprovados, incluindo a orientação de
-  instalação para Safari/Edge no iPhone e o cabeçalho responsivo dos jogos;
+- 8 fluxos completos no Chromium: aprovados, incluindo a orientação de
+  instalação para Safari/Edge no iPhone, exportação dos atletas selecionados e
+  responsividade global em 320, 390 e 768 px;
 - PWA: compilada;
 - sintaxe da rotina de notificações: aprovada;
 - chave VAPID e API FCM V1: configuradas;
 - rotina gratuita, publicação real e proteção da branch: validadas;
 - entrega Web Push em aparelho real: validada no celular e no Apple Watch;
 - toque na notificação: validado com abertura da página individual do jogo;
-- tela individual do jogo: título, ações e cartões adaptados para celulares.
+- telas principais: títulos, ações, formulários, cartões e controles adaptados
+  para celulares e tablets;
+- atletas: tabela substituída por cartões abaixo de 1024 px;
+- exportação: somente atletas marcados, com quantidade informada no botão.
+- importação: arquivos JSON validados, nomes repetidos ignorados e novos atletas
+  gravados em um único lote administrativo.
 
 ## Validação real de Web Push
 

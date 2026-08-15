@@ -1,11 +1,13 @@
 <template>
-  <q-page padding>
-    <div class="page-content q-gutter-lg">
+  <q-page class="app-page">
+    <div class="app-page-content app-page-content--narrow q-gutter-lg">
       <!-- Resumo da conta e função atribuída no Firebase. -->
-      <div>
-        <div class="text-h4">Ajustes</div>
-        <div class="text-body2 text-grey-7">
-          Conta, delegação de presença e notificações.
+      <div class="app-page-header">
+        <div class="app-page-heading">
+          <div class="app-page-title text-h4">Ajustes</div>
+          <div class="text-body2 text-grey-7">
+            Conta, delegação de presença e notificações.
+          </div>
         </div>
       </div>
 
@@ -14,7 +16,7 @@
         <q-card-section>
           <div class="text-h6">Sua conta</div>
           <div>{{ currentUser?.displayName ?? currentUser?.email }}</div>
-          <div class="row q-gutter-sm q-mt-sm">
+          <div class="app-wrap-actions q-mt-sm">
             <q-badge color="primary" :label="roleLabel" />
             <q-badge
               :color="emailVerified ? 'positive' : 'warning'"
@@ -33,7 +35,7 @@
             Confirme o e-mail e aguarde a aprovação da administração para usar
             presença, delegações e notificações.
           </q-banner>
-          <div v-if="!emailVerified" class="row q-gutter-sm q-mt-md">
+          <div v-if="!emailVerified" class="app-wrap-actions q-mt-md">
             <q-btn
               outline
               color="primary"
@@ -63,7 +65,11 @@
         </q-card-section>
 
         <q-list separator>
-          <q-item v-for="user in managedUsers" :key="user.uid">
+          <q-item
+            v-for="user in managedUsers"
+            :key="user.uid"
+            class="managed-user-item"
+          >
             <q-item-section>
               <q-item-label>{{ user.displayName }}</q-item-label>
               <q-item-label caption>{{ user.email }}</q-item-label>
@@ -78,8 +84,8 @@
                 >Situação: {{ accountStatusText(user.status) }}</q-item-label
               >
             </q-item-section>
-            <q-item-section side>
-              <div class="row items-center no-wrap q-gutter-sm">
+            <q-item-section side class="managed-user-controls">
+              <div class="managed-user-actions">
                 <q-btn
                   round
                   flat
@@ -159,7 +165,7 @@
           </p>
         </q-card-section>
         <q-list separator>
-          <q-item v-for="entry in auditLogs" :key="entry.id">
+          <q-item v-for="entry in auditLogs" :key="entry.id" class="audit-item">
             <q-item-section>
               <q-item-label>{{ auditActionLabel(entry.action) }}</q-item-label>
               <q-item-label caption>
@@ -280,8 +286,9 @@
                 :disable="!canUseMemberFeatures"
               />
             </div>
-            <div class="col-auto">
+            <div class="col-12 col-sm-auto">
               <q-btn
+                class="app-mobile-full"
                 color="primary"
                 label="Delegar"
                 :disable="!selectedDelegate"
@@ -322,7 +329,7 @@
 
     <!-- Um único editor atende todos os perfis listados para a administração. -->
     <q-dialog v-model="userEditorOpen">
-      <q-card class="user-editor-card">
+      <q-card class="app-dialog-card">
         <q-card-section>
           <div class="text-h6">Editar usuário</div>
           <div class="text-caption text-grey-7">{{ editingUser.email }}</div>
@@ -918,18 +925,55 @@ async function disablePush() {
 </script>
 
 <style scoped>
-.page-content {
-  max-width: 760px;
-  margin: 0 auto;
-}
 .role-select {
   min-width: 170px;
 }
 .status-select {
   min-width: 195px;
 }
-.user-editor-card {
-  width: 520px;
-  max-width: 95vw;
+.managed-user-actions {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(170px, 1fr) minmax(195px, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.managed-user-controls {
+  max-width: 100%;
+  padding-left: 16px;
+}
+
+/* Em tablets, o menu lateral já reduz a largura útil; os controles passam
+   para baixo dos dados da pessoa antes que a linha fique comprimida. */
+@media (max-width: 1023px) {
+  .managed-user-item,
+  .audit-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .managed-user-controls {
+    width: 100%;
+    padding-left: 0;
+    align-items: stretch;
+  }
+
+  .managed-user-actions {
+    grid-template-columns: repeat(3, auto);
+    justify-content: start;
+  }
+
+  .role-select,
+  .status-select {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .audit-item :deep(.q-item__section--side) {
+    align-items: flex-start;
+    padding-left: 0;
+  }
 }
 </style>
