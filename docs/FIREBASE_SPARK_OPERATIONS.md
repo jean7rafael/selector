@@ -92,8 +92,11 @@ https://github.com/jean7rafael/selector/actions/runs/31848906895.
 7. marcar **Enviar um teste** e executar;
 8. confirmar a chegada e o endereço individual aberto pelo toque.
 
-Só depois dessa entrega real a pendência de Web Push deve receber check na
-issue.
+Esse processo foi concluído em 14/08/2026. A execução
+https://github.com/jean7rafael/selector/actions/runs/31851864267 registrou uma
+entrega aceita e nenhuma falha. Jean confirmou o recebimento no celular e no
+Apple Watch e a abertura direta do jogo pelo toque. As pendências de Web Push
+nas issues #12 e #14 receberam o check somente após essa confirmação real.
 
 ## Administração de contas
 
