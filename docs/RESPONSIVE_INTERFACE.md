@@ -49,6 +49,9 @@ O botão exporta **somente os atletas marcados** na tela de Atletas.
 - o campo temporário `selected` é gravado como `false` no JSON para que o
   arquivo não carregue uma seleção de interface como se fosse dado permanente.
 
+A importação compatível com esse arquivo está detalhada em
+`docs/PLAYER_TRANSFER.md`.
+
 ## Proteção contra regressões
 
 Os testes completos do navegador verificam:

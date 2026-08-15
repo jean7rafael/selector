@@ -39,6 +39,22 @@ export async function writePlayer(player: Player): Promise<string> {
   return document.id;
 }
 
+/* A importação usa um único lote: todos os atletas válidos entram juntos ou
+   nenhum é gravado se o Firebase recusar alguma operação. */
+export async function writePlayers(players: Player[]): Promise<void> {
+  if (!players.length) return;
+  const batch = writeBatch(db);
+  players.forEach((player) => {
+    const reference = doc(playersCollection);
+    batch.set(reference, {
+      ...playerToDocument(player),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  });
+  await batch.commit();
+}
+
 /* Atualiza diretamente pelo document ID, evitando a antiga busca
    por um campo id que nem sempre existia no documento. */
 export async function updatePlayerOnFirestore(player: Player): Promise<void> {

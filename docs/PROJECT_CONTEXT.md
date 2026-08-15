@@ -61,7 +61,7 @@ mecanismo de segurança.
 
 - revisão de estilo: aprovada;
 - verificação de tipos: aprovada;
-- 18 testes unitários: aprovados;
+- 20 testes unitários: aprovados;
 - 15 testes de regras do Firestore: aprovados;
 - 8 fluxos completos no Chromium: aprovados, incluindo a orientação de
   instalação para Safari/Edge no iPhone, exportação dos atletas selecionados e
@@ -76,6 +76,8 @@ mecanismo de segurança.
   para celulares e tablets;
 - atletas: tabela substituída por cartões abaixo de 1024 px;
 - exportação: somente atletas marcados, com quantidade informada no botão.
+- importação: arquivos JSON validados, nomes repetidos ignorados e novos atletas
+  gravados em um único lote administrativo.
 
 ## Validação real de Web Push
 

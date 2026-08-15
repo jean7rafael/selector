@@ -22,6 +22,19 @@
           </q-btn>
           <q-btn
             v-if="canManagePlayers"
+            outline
+            icon="upload_file"
+            label="Importar arquivo"
+            aria-label="Importar atletas de um arquivo JSON"
+            @click="openImportDialog"
+          >
+            <q-tooltip>
+              Integra atletas exportados por outro Vôlei Hub sem duplicar nomes
+              existentes.
+            </q-tooltip>
+          </q-btn>
+          <q-btn
+            v-if="canManagePlayers"
             color="primary"
             icon="person_add"
             label="Adicionar"
@@ -283,6 +296,79 @@
         </q-form>
       </q-card>
     </q-dialog>
+
+    <!-- A importação é confirmada em duas etapas para que a diretoria veja
+         quantos registros entrarão e quantos serão ignorados. -->
+    <q-dialog v-model="importDialog" @hide="resetImport">
+      <q-card class="app-dialog-card import-dialog-card">
+        <q-card-section>
+          <div class="text-h6">Importar atletas</div>
+          <p class="text-body2 text-grey-7 q-mb-none">
+            Escolha um JSON criado por “Exportar selecionados”. Nomes já
+            cadastrados ou repetidos no arquivo não serão duplicados.
+          </p>
+        </q-card-section>
+
+        <q-card-section class="q-gutter-md">
+          <q-file
+            v-model="importFile"
+            outlined
+            clearable
+            accept=".json,application/json"
+            label="Arquivo JSON"
+            hint="Limite: 1 MB e 450 registros por arquivo."
+            @update:model-value="prepareImport"
+          >
+            <template #prepend><q-icon name="upload_file" /></template>
+          </q-file>
+
+          <q-banner v-if="importError" rounded class="bg-red-1 text-negative">
+            {{ importError }}
+          </q-banner>
+          <q-banner
+            v-else-if="importFile"
+            rounded
+            class="bg-blue-1 text-primary"
+          >
+            {{ importSummary }}
+          </q-banner>
+
+          <q-list
+            v-if="importCandidates.length"
+            bordered
+            separator
+            class="import-preview"
+          >
+            <q-item
+              v-for="player in importCandidates.slice(0, 10)"
+              :key="`${player.name}-${player.order}`"
+            >
+              <q-item-section>
+                <q-item-label>{{ player.name }}</q-item-label>
+                <q-item-label caption>{{ player.position }}</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-item v-if="importCandidates.length > 10">
+              <q-item-section class="text-grey-7">
+                E mais {{ importCandidates.length - 10 }} atleta(s)…
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+
+        <q-card-actions align="right" class="app-card-actions-responsive">
+          <q-btn flat label="Cancelar" v-close-popup />
+          <q-btn
+            color="primary"
+            icon="person_add"
+            :label="importButtonLabel"
+            :disable="!importCandidates.length || Boolean(importError)"
+            :loading="importing"
+            @click="saveImportedPlayers"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -300,6 +386,7 @@ import { QRating, useQuasar, type QTableProps } from 'quasar';
 import {
   calculatePlayerRelevance,
   emptyPlayer,
+  parseImportedPlayers,
   type Player,
 } from 'src/domain/player';
 import {
@@ -313,6 +400,7 @@ import {
   subscribeToPlayers,
   updatePlayerOnFirestore,
   writePlayer,
+  writePlayers,
 } from 'src/misc/database';
 
 /* ===========================================================
@@ -358,6 +446,13 @@ const loadError = ref('');
 const selectAll = ref(false);
 const playerDialog = ref(false);
 const editingPlayer = ref<Player>(emptyPlayer());
+const importDialog = ref(false);
+const importFile = ref<File | null>(null);
+const importCandidates = ref<Player[]>([]);
+const importDuplicateCount = ref(0);
+const importInvalidCount = ref(0);
+const importError = ref('');
+const importing = ref(false);
 let unsubscribePlayers: (() => void) | undefined;
 
 const positions = [
@@ -435,6 +530,31 @@ const exportButtonHint = computed(() =>
 const exportButtonAccessibleLabel = computed(
   () => `${exportButtonLabel.value}. ${exportButtonHint.value}`,
 );
+const importButtonLabel = computed(() =>
+  importCandidates.value.length === 1
+    ? 'Importar 1 atleta'
+    : `Importar ${importCandidates.value.length} atletas`,
+);
+const importSummary = computed(() => {
+  const parts = [
+    importCandidates.value.length === 1
+      ? '1 novo atleta será adicionado.'
+      : `${importCandidates.value.length} novos atletas serão adicionados.`,
+  ];
+  if (importDuplicateCount.value)
+    parts.push(
+      importDuplicateCount.value === 1
+        ? '1 nome repetido será ignorado.'
+        : `${importDuplicateCount.value} nomes repetidos serão ignorados.`,
+    );
+  if (importInvalidCount.value)
+    parts.push(
+      importInvalidCount.value === 1
+        ? '1 registro inválido será ignorado.'
+        : `${importInvalidCount.value} registros inválidos serão ignorados.`,
+    );
+  return parts.join(' ');
+});
 const teamInfo = computed(() => {
   const count = selectedPlayers.value.length;
   if (count > 21) return { message: 'O máximo é 21 atletas.', teams: 0 };
@@ -515,6 +635,109 @@ function openNewPlayer() {
 function openEditPlayer(player: Player) {
   editingPlayer.value = { ...player };
   playerDialog.value = true;
+}
+
+/* ==========================================================
+   IMPORTAÇÃO DE OUTRA INSTALAÇÃO
+
+   O arquivo é lido primeiro no navegador. Somente após a prévia e a
+   confirmação os novos nomes seguem juntos para um lote do Firestore.
+========================================================== */
+
+function resetImport() {
+  importFile.value = null;
+  importCandidates.value = [];
+  importDuplicateCount.value = 0;
+  importInvalidCount.value = 0;
+  importError.value = '';
+}
+
+function openImportDialog() {
+  resetImport();
+  importDialog.value = true;
+}
+
+function playerNameKey(name: string) {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('pt-BR');
+}
+
+async function prepareImport(file: File | null) {
+  importCandidates.value = [];
+  importDuplicateCount.value = 0;
+  importInvalidCount.value = 0;
+  importError.value = '';
+  if (!file) return;
+  if (file.size > 1_000_000) {
+    importError.value = 'O arquivo ultrapassa o limite de 1 MB.';
+    return;
+  }
+
+  try {
+    const parsed = parseImportedPlayers(
+      JSON.parse(await file.text()) as unknown,
+      players.value.length + 1,
+    );
+    importInvalidCount.value = parsed.invalidCount;
+    const knownNames = new Set(
+      players.value.map((player) => playerNameKey(player.name)),
+    );
+    const namesInFile = new Set<string>();
+
+    parsed.players.forEach((player) => {
+      const nameKey = playerNameKey(player.name);
+      if (knownNames.has(nameKey) || namesInFile.has(nameKey)) {
+        importDuplicateCount.value += 1;
+        return;
+      }
+      namesInFile.add(nameKey);
+      importCandidates.value.push({
+        ...player,
+        order: players.value.length + importCandidates.value.length + 1,
+      });
+    });
+  } catch (error) {
+    importError.value =
+      error instanceof Error && error.message === 'PLAYER_IMPORT_TOO_LARGE'
+        ? 'O arquivo possui mais de 450 registros.'
+        : 'O arquivo não contém uma lista JSON válida de atletas.';
+  }
+}
+
+async function saveImportedPlayers() {
+  if (!importCandidates.value.length) return;
+  importing.value = true;
+  const importedCount = importCandidates.value.length;
+  const ignoredCount = importDuplicateCount.value + importInvalidCount.value;
+  const ignoredMessage =
+    ignoredCount === 1
+      ? ' 1 registro ignorado.'
+      : ignoredCount > 1
+        ? ` ${ignoredCount} registros ignorados.`
+        : '';
+  try {
+    await writePlayers(importCandidates.value);
+    importDialog.value = false;
+    $q.notify({
+      type: 'positive',
+      message: `${
+        importedCount === 1
+          ? '1 atleta importado.'
+          : `${importedCount} atletas importados.`
+      }${ignoredMessage}`,
+    });
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Não foi possível importar os atletas.',
+    });
+  } finally {
+    importing.value = false;
+  }
 }
 
 async function savePlayer() {
@@ -646,6 +869,15 @@ function exportPlayers() {
 
 .athlete-dialog-card {
   width: 420px;
+}
+
+.import-dialog-card {
+  width: 560px;
+}
+
+.import-preview {
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 @media (max-width: 599px) {

@@ -47,12 +47,48 @@ test('lista atletas e forma dois times', async ({ page }) => {
   await expect(page.getByText('Time 2', { exact: true })).toBeVisible();
 });
 
-test('diretoria entra e agenda um jogo', async ({ page }) => {
+test('diretoria importa atletas e agenda um jogo', async ({ page }) => {
   await page.goto('/#/login');
   await page.getByLabel('E-mail').fill('diretoria@selector.local');
   await page.getByLabel('Senha', { exact: true }).fill('selector123');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByText(/Bem-vindo/)).toBeVisible();
+
+  /* A diretoria integra um arquivo exportado por outra instalação. O nome já
+     existente e o registro sem nome aparecem na prévia, mas não são gravados. */
+  await page.goto('/#/atletas');
+  await page
+    .getByRole('button', { name: 'Importar atletas de um arquivo JSON' })
+    .click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'atletas-externos.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(
+      JSON.stringify([
+        {
+          name: 'Laura importada',
+          position: 'Ponteiro',
+          gender: 'Mulher',
+          relevanciaBase: 500,
+          pass: 4,
+        },
+        { name: 'Ana', position: 'Levantador' },
+        { position: 'Central' },
+      ]),
+    ),
+  });
+  await expect(page.getByText(/1 novo atleta será adicionado/)).toBeVisible();
+  await expect(page.getByText(/1 nome repetido será ignorado/)).toBeVisible();
+  await expect(
+    page.getByText(/1 registro inválido será ignorado/),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Importar 1 atleta' }).click();
+  await expect(
+    page.getByText(/1 atleta importado\. 2 registros ignorados/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('cell', { name: 'Laura importada', exact: true }),
+  ).toBeVisible();
 
   await page.goto('/#/jogos');
   await page.getByRole('button', { name: 'Novo jogo' }).click();
@@ -288,7 +324,10 @@ test('padrão global mantém atletas e ajustes responsivos no celular', async ({
   const addButton = page.getByRole('button', { name: 'Adicionar' });
   await expect(athletesTitle).toBeVisible();
   await expect(addButton).toBeVisible();
-  await expect(page.locator('.athlete-mobile-card')).toHaveCount(12);
+  await expect(page.getByText('Ana', { exact: true }).first()).toBeVisible();
+  await expect
+    .poll(() => page.locator('.athlete-mobile-card').count())
+    .toBeGreaterThanOrEqual(12);
   await expect(
     page.getByRole('button', {
       name: /Exportar selecionados.*Selecione ao menos um atleta/,
