@@ -175,7 +175,10 @@ test('Safari ou Edge no iPhone orienta a instalação antes do Web Push', async 
     page.getByText(/admin@selector\.local · Administrador · Aprovado/),
   ).toBeVisible();
 
-  await page.getByRole('link', { name: 'Ajustes', exact: true }).first().click();
+  await page
+    .getByRole('link', { name: 'Ajustes', exact: true })
+    .first()
+    .click();
   await expect(page.getByText('Ajustes', { exact: true })).toBeVisible();
   await expect(
     page.getByText('Instale antes de ativar', { exact: true }),
@@ -186,4 +189,52 @@ test('Safari ou Edge no iPhone orienta a instalação antes do Web Push', async 
   await expect(
     page.getByRole('button', { name: 'Ativar notificações' }),
   ).toHaveCount(0);
+});
+
+test('detalhe do jogo mantém o cabeçalho legível no celular', async ({
+  page,
+}) => {
+  /* A tela estreita reproduz o cenário da PWA no iPhone que revelou o título
+     comprimido entre os botões de voltar e criar jogo. */
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/#/login');
+  await page.getByLabel('E-mail').fill('admin@selector.local');
+  await page.getByLabel('Senha', { exact: true }).fill('selector123');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page.getByText(/Bem-vindo/)).toBeVisible();
+
+  await page.goto('/#/jogos');
+  const gameTitle = `Teste responsivo ${Date.now()}`;
+  await page.getByRole('button', { name: 'Novo jogo' }).click();
+  await page.getByLabel('Título').fill(gameTitle);
+  await page.getByLabel('Data e hora').fill('2031-06-15T10:00');
+  await page.getByRole('button', { name: 'Agendar', exact: true }).click();
+  const gameCard = page.locator('.q-card').filter({ hasText: gameTitle });
+  await gameCard.getByRole('link', { name: 'Abrir lista deste jogo' }).click();
+  await expect(page).toHaveURL(/#\/jogos\/[^/]+$/);
+
+  const title = page
+    .getByRole('main')
+    .getByText('Jogos e presença', { exact: true });
+  const backButton = page.getByRole('link', { name: 'Todos os jogos' });
+  const newGameButton = page.getByRole('button', { name: 'Novo jogo' });
+  await expect(title).toBeVisible();
+  await expect(backButton).toBeVisible();
+  await expect(newGameButton).toBeVisible();
+
+  /* Além da presença dos elementos, as posições confirmam que as ações foram
+     empilhadas abaixo do título e não voltaram a ocupar o mesmo espaço. */
+  const titleBox = await title.boundingBox();
+  const backButtonBox = await backButton.boundingBox();
+  expect(titleBox).not.toBeNull();
+  expect(backButtonBox).not.toBeNull();
+  expect(titleBox!.width).toBeGreaterThan(250);
+  expect(backButtonBox!.y).toBeGreaterThan(titleBox!.y + titleBox!.height);
+
+  const hasHorizontalOverflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth,
+  );
+  expect(hasHorizontalOverflow).toBe(false);
 });

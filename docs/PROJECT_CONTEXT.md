@@ -62,19 +62,23 @@ mecanismo de segurança.
 - verificação de tipos: aprovada;
 - 18 testes unitários: aprovados;
 - 15 testes de regras do Firestore: aprovados;
-- 6 fluxos completos no Chromium: aprovados, incluindo a orientação de
-  instalação para Safari/Edge no iPhone;
+- 7 fluxos completos no Chromium: aprovados, incluindo a orientação de
+  instalação para Safari/Edge no iPhone e o cabeçalho responsivo dos jogos;
 - PWA: compilada;
 - sintaxe da rotina de notificações: aprovada;
 - chave VAPID e API FCM V1: configuradas;
 - rotina gratuita, publicação real e proteção da branch: validadas;
-- entrega Web Push em aparelho real: aguarda uma inscrição ativa.
+- entrega Web Push em aparelho real: validada no celular e no Apple Watch;
+- toque na notificação: validado com abertura da página individual do jogo;
+- tela individual do jogo: título, ações e cartões adaptados para celulares.
 
-## Pendências externas
+## Validação real de Web Push
 
-1. instalar e abrir a PWA em um aparelho real, aceitar a permissão e confirmar
-   que a inscrição ficou ativa;
-2. criar um jogo de teste, executar a rotina e confirmar a notificação e o link
-   individual aberto pelo toque.
+O teste manual de 14 de agosto de 2026 foi aceito pelo FCM com uma entrega e
+nenhuma falha na execução
+https://github.com/jean7rafael/selector/actions/runs/31851864267. A notificação
+chegou ao celular e ao Apple Watch, e o toque abriu a URL individual do jogo.
 
-Essas pendências só devem ser marcadas nas issues após a confirmação real.
+As issues #12 e #14 foram encerradas somente depois dessa confirmação. A
+responsividade observada durante o teste passou a ter uma verificação de
+navegador própria para impedir regressões.
